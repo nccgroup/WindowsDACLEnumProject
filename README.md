@@ -18,6 +18,7 @@ Read - http://msdn.microsoft.com/en-us/library/windows/desktop/aa446597(v=vs.85)
 Tool #1: Process Perms
 -------------
 
+###### Features
 The first tools released as part of this project. Will enumerate:
 * Processes and the integrity level and user they are running as.
 * Optionally: the DACLs associated with the process object.
@@ -27,4 +28,19 @@ The first tools released as part of this project. Will enumerate:
 
 The tool will automatically flag any suspicious DACLs.
 
-Designed for Windows Vista / Server 2008 and higher due to integrity level awareness.
+###### Command Line Options
+The command line take the following options:
+* -p Process permissions
+* -m Modules
+* -t Threads and permissions
+* -o [PID]
+* -x exclude non mapped SIDs from alerts
+
+###### Typical Usage
+Typical usage will be with a command line such as:
+processperms -px
+
+The tool is designed for Windows Vista / Server 2008 and higher due to integrity level awareness.
+
+###### Screenshot
+![ScreenShot](https://raw.github.com/nccgroup/WindowsDACLEnumProject/master/screenshots/processandthread.png)
