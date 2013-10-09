@@ -28,3 +28,5 @@ The first tools released as part of this project. Will enumerate:
 The tool will automatically flag any suspicious DACLs.
 
 Designed for Windows Vista / Server 2008 and higher due to integrity level awareness.
+
+![ScreenShot](https://raw.github.com/nccgroup/WindowsDACLEnumProject/master/screenshots/processandthread.png)
