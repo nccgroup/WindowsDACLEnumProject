@@ -28,7 +28,6 @@ The first tools released as part of this project. Will enumerate:
 
 The tool will automatically flag any suspicious DACLs.
 
-<<<<<<< HEAD
 ###### Command Line Options
 The command line take the following options:
 * -p Process permissions
@@ -47,5 +46,4 @@ The tool is designed for Windows Vista / Server 2008 and higher due to integrity
 =======
 Designed for Windows Vista / Server 2008 and higher due to integrity level awareness.
 
->>>>>>> 566a67fa59af385ff3fa9b13be774bd76483d925
 ![ScreenShot](https://raw.github.com/nccgroup/WindowsDACLEnumProject/master/screenshots/processandthread.png)
