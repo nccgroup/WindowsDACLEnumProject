@@ -1,0 +1,13 @@
+<?xml-version ='1.0' encoding='UTF-8'?>
+<PropertyList varName="Settings" >
+ <Property>
+  <Associations varName="Diff Associations" >
+   <RunExternal>false</RunExternal>
+  </Associations>
+ </Property>
+ <Property>
+  <Associations varName="Merge Associations" >
+   <RunExternal>false</RunExternal>
+  </Associations>
+ </Property>
+</PropertyList>
