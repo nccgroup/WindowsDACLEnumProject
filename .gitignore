@@ -3,15 +3,24 @@
 #######################
 *.suo
 *.user
+*.sdf
+ipch/
 
 ##################
 # Compiled files #
 ##################
 bin/
 obj/
+Release/
+Debug/
 *.dll
 *.exe
 *.pdb
+*.obj
+*.log
+*.tlog
+*.htm
+*.pch
 
 #####################
 # OS-specific files #
