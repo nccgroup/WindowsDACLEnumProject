@@ -17,6 +17,23 @@ Released under AGPL see LICENSE for more information
 // global 
 HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
+BOOL CALLBACK EnumWindowStationProc(LPTSTR lpszWindowStation, LPARAM lParam)
+{
+	fprintf(stdout,"[win] found %s\n",lpszWindowStation);
+	if(OpenWindowStation(lpszWindowStation,FALSE,WINSTA_ALL_ACCESS) == NULL){
+		fprintf(stdout,"[win!] couldn't open %s - %d\n",lpszWindowStation,GetLastError());
+	}
+
+	return true;
+}
+
+//
+BOOL WindowStationEnumOpen(){
+	EnumWindowStations(&EnumWindowStationProc,NULL);
+	return true;
+}
+
+
 //
 // Function	: SetDebugPrivilege
 // Role		: Gets debug privs for our process
@@ -534,12 +551,14 @@ DWORD EnumerateThreads(DWORD dwPID, char *strProc, bool bSystem,bool bExclude){
 		TCHAR strName[4096];
 		if(te32.th32OwnerProcessID==dwPID){
 			dwCount++;
+			/*
 			HDESK hdThread = NULL;
 			hdThread = GetThreadDesktop(te32.th32ThreadID);
-			//if(hdThread == NULL) fprintf(stderr,"[!] Failed to get thread desktop for %d - %d\n",te32.th32ThreadID,GetLastError());
+			if(hdThread == NULL) fprintf(stderr,"[!] Failed to get thread desktop for %d - %d\n",te32.th32ThreadID,GetLastError());
 			DWORD szNeeded = NULL;
 			if(GetUserObjectInformation(hdThread,UOI_NAME,&strName,4094,&szNeeded)==0) sprintf(strName,"FailedToGetName - %d",GetLastError());
 			fprintf(stdout,"[i] %s\n", "  |");
+			*/
 			/*
 			if(strcmp(strName,"Default") != 0){
 				fprintf(stdout,"[i] %s [0x%08X - %d - %s - Alert]\n", "  +--> Thread", te32.th32ThreadID, te32.th32ThreadID,strName);
@@ -570,7 +589,7 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 {
 	DWORD intCount, dwRet, dwMods;
 	HANDLE hProcess;
-	HMODULE hModule[4096];
+	HMODULE hModule[9000];
 	char cProcess[MAX_PATH];
 	char cModule[MAX_PATH];
 	
@@ -580,9 +599,12 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 	{
 		if(GetLastError()==5){
 			hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, dwPID);
+			
 			if (hProcess == NULL){
+				
 				PWTS_PROCESS_INFO pProcessInfo;
 				DWORD dwProcessCount=0;
+				
 				if(WTSEnumerateProcesses(WTS_CURRENT_SERVER_HANDLE,0,1,&pProcessInfo, &dwProcessCount)==0){
 					fprintf(stderr,"[!] OpenProcess fallback failed (%d),%d\n", dwPID, GetLastError());
 					return;
@@ -595,13 +617,13 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 					WTSFreeMemory(pProcessInfo);
 				}
 			}
-		} else {
+		} else { // Last error wasn't access denied 
 			fprintf(stderr,"[!] OpenProcess failed (%d),%d\n", dwPID, GetLastError());
 			return;
 		}
-	} else {
+	} else { // Process handle not NULL
 
-		if (EnumProcessModules(hProcess,hModule,4096*sizeof(HMODULE), &dwRet) == 0)
+		if (EnumProcessModules(hProcess,hModule,9000*sizeof(HMODULE), &dwRet) == 0)
 		{
 			if(GetLastError() == 299){
 				fprintf(stderr,"[i] 64bit process and we're 32bit - sad panda! skipping PID %d\n",dwPID);
@@ -615,9 +637,19 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 		GetModuleBaseName(hProcess,hModule[0],cProcess,MAX_PATH);
 	}
 
+
 	DWORD dwSessionID = 0;
 	ProcessIdToSessionId(dwPID,&dwSessionID);
-	fprintf(stdout,"[i] %s [%s - PID: %d in session %d] - ", "+> Process", cProcess,dwPID, dwSessionID);	
+	
+	PWTS_SESSION_INFO pSessionInfo;
+	DWORD dwSessionInfo=0;
+	WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE,0,1,&pSessionInfo,&dwSessionInfo);
+	DWORD dwCount=0;
+	for(dwCount=0;dwCount<dwSessionInfo;dwCount++){
+		if(pSessionInfo[dwCount].SessionId == dwSessionID) break;
+	}
+
+	fprintf(stdout,"[i] %s [%s - PID: %d in session %d - window station %s] - ", "+> Process", cProcess,dwPID, dwSessionID,pSessionInfo[dwCount].pWinStationName);	
 	GetProcessIntegrityLevel(hProcess,true);
 	bool bSystem=UserForPID(dwPID);
 	fprintf(stdout,"\n");
@@ -748,6 +780,8 @@ int _tmain(int argc, _TCHAR* argv[])
 		fwprintf(stderr,L"[!] Failed to obtain debug privileges\n");
 		return 1;
 	}
+
+	//WindowStationEnumOpen();
 
 	if(dwPID ==0){
 		EnumerateProcesses(bModules,bProcPerms,bThreadsandPerms,bExclude);
