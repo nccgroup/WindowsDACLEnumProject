@@ -1,5 +1,5 @@
 /*
-A Micrsoft Windows process and thread batch permissions dumper with suspicious DACL alerting
+A Microsoft Windows process and thread batch permissions dumper with suspicious DACL alerting
 
 Released as open source by NCC Group Plc - http://www.nccgroup.com/
 
@@ -528,11 +528,24 @@ DWORD EnumerateThreads(DWORD dwPID, char *strProc, bool bSystem,bool bExclude){
 	// Now walk the thread list of the system,
 	// and display information about each thread
 	// associated with the specified process
+	GetDesktopWindow();
 	do 
 	{ 
+		TCHAR strName[4096];
 		if(te32.th32OwnerProcessID==dwPID){
 			dwCount++;
+			HDESK hdThread = NULL;
+			hdThread = GetThreadDesktop(te32.th32ThreadID);
+			//if(hdThread == NULL) fprintf(stderr,"[!] Failed to get thread desktop for %d - %d\n",te32.th32ThreadID,GetLastError());
+			DWORD szNeeded = NULL;
+			if(GetUserObjectInformation(hdThread,UOI_NAME,&strName,4094,&szNeeded)==0) sprintf(strName,"FailedToGetName - %d",GetLastError());
 			fprintf(stdout,"[i] %s\n", "  |");
+			/*
+			if(strcmp(strName,"Default") != 0){
+				fprintf(stdout,"[i] %s [0x%08X - %d - %s - Alert]\n", "  +--> Thread", te32.th32ThreadID, te32.th32ThreadID,strName);
+			} else{
+				fprintf(stdout,"[i] %s [0x%08X - %d - %s]\n", "  +--> Thread", te32.th32ThreadID, te32.th32ThreadID,strName);
+			}*/
 			fprintf(stdout,"[i] %s [0x%08X - %d]\n", "  +--> Thread", te32.th32ThreadID, te32.th32ThreadID);
 			hThread=OpenThread(THREAD_ALL_ACCESS,false,te32.th32ThreadID);
 			if( hThread != INVALID_HANDLE_VALUE ) {
@@ -568,28 +581,43 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 		if(GetLastError()==5){
 			hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, dwPID);
 			if (hProcess == NULL){
-				fprintf(stderr,"[!] OpenProcess(%d),%d\n", dwPID, GetLastError());
-				return;
+				PWTS_PROCESS_INFO pProcessInfo;
+				DWORD dwProcessCount=0;
+				if(WTSEnumerateProcesses(WTS_CURRENT_SERVER_HANDLE,0,1,&pProcessInfo, &dwProcessCount)==0){
+					fprintf(stderr,"[!] OpenProcess fallback failed (%d),%d\n", dwPID, GetLastError());
+					return;
+				} else{
+					for(DWORD dwCount=0;dwCount<dwProcessCount;dwCount++){
+						if(pProcessInfo[dwCount].ProcessId == dwPID){
+							strcpy_s(cProcess,MAX_PATH,pProcessInfo[dwCount].pProcessName);				
+						}
+					}
+					WTSFreeMemory(pProcessInfo);
+				}
 			}
 		} else {
-			fprintf(stderr,"[!] OpenProcess(%d),%d\n", dwPID, GetLastError());
+			fprintf(stderr,"[!] OpenProcess failed (%d),%d\n", dwPID, GetLastError());
 			return;
 		}
-	}
+	} else {
 
-	if (EnumProcessModules(hProcess,hModule,4096*sizeof(HMODULE), &dwRet) == 0)
-	{
-		if(GetLastError() == 299){
-			fprintf(stderr,"[i] 64bit process and we're 32bit - sad panda! skipping PID %d\n",dwPID);
-		} else {
-			fprintf(stderr,"[!] EnumProcessModules(%d),%d\n", dwPID, GetLastError());
+		if (EnumProcessModules(hProcess,hModule,4096*sizeof(HMODULE), &dwRet) == 0)
+		{
+			if(GetLastError() == 299){
+				fprintf(stderr,"[i] 64bit process and we're 32bit - sad panda! skipping PID %d\n",dwPID);
+			} else {
+				fprintf(stderr,"[!] EnumProcessModules(%d),%d\n", dwPID, GetLastError());
+			}
+			return;
 		}
-		return;
-	}
-	dwMods = dwRet / sizeof(HMODULE);
+		dwMods = dwRet / sizeof(HMODULE);
 
-	GetModuleBaseName(hProcess,hModule[0],cProcess,MAX_PATH);
-	fprintf(stdout,"[i] %s [%s - %d] - ", "+> Process", cProcess,dwPID);	
+		GetModuleBaseName(hProcess,hModule[0],cProcess,MAX_PATH);
+	}
+
+	DWORD dwSessionID = 0;
+	ProcessIdToSessionId(dwPID,&dwSessionID);
+	fprintf(stdout,"[i] %s [%s - PID: %d in session %d] - ", "+> Process", cProcess,dwPID, dwSessionID);	
 	GetProcessIntegrityLevel(hProcess,true);
 	bool bSystem=UserForPID(dwPID);
 	fprintf(stdout,"\n");
