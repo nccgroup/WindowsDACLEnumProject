@@ -152,12 +152,10 @@ void PrintPermissions( HANDLE hObject, bool bDesktop)
 									if( dwResult == ERROR_NONE_MAPPED){
 										fprintf(stdout,"[i]    |\n");
 										fprintf(stdout,"[i]    +-+-> Allowed - NONMAPPED - SID %s\n", sidToText(sSID));
-										fprintf(stdout,"[i]    |\n");
 									} else if (dwResult != ERROR_NONE_MAPPED){
 										fprintf(stderr,"[!] LookupAccountSid Error 	%u\n", GetLastError());
 										fprintf(stdout,"[i]    |\n");
 										fprintf(stdout,"[i]    +-+-> Allowed - ERROR     - SID %s\n", sidToText(sSID));
-										fprintf(stdout,"[i]    |\n");
 										//return;
 									} else {
 										continue;
