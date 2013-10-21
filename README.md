@@ -19,7 +19,7 @@ Tool #1: Process Perms
 -------------
 
 ###### Features
-The first tools released as part of this project. Will enumerate:
+The first tool released as part of this project. Will enumerate:
 * Processes and the integrity level and user they are running as.
 * Optionally: the DACLs associated with the process object.
 * Optionally: the threads for a process and the DACLs associated with them.
@@ -47,3 +47,12 @@ The tool is designed for Windows Vista / Server 2008 and higher due to integrity
 Designed for Windows Vista / Server 2008 and higher due to integrity level awareness.
 
 ![ScreenShot](https://raw.github.com/nccgroup/WindowsDACLEnumProject/master/screenshots/processandthread.png)
+
+
+Tool #2: Window Stations and Desktops
+-------------
+
+###### Features
+The second tool released as part of this project. Will enumerate:
+* Window Stations within the session that it is executed and the associated DACL
+* Desktops within those Window Stations and the associated DACLs
