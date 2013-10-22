@@ -66,5 +66,5 @@ The third tool released as part of this project. Will enumerate:
 * Services including kernel drivers, filter drivers and user land services.
 * DACLs associated with the service entries in the service control manager.
 * Service status, PID, binary path.
-* TODO: DACLs associated with with the binaries associated
-* TODO: Flag obviously weak DACLs
+* DACLs associated with with the binaries associated
+* Flag obviously weak DACLs
