@@ -17,3 +17,4 @@ Released under AGPL see LICENSE for more information
 #include <stdio.h>
 #include <tchar.h>
 #include <Windows.h>
+#include <wtsapi32.h>
