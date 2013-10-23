@@ -14,6 +14,17 @@ Released under AGPL see LICENSE for more information
 #include "stdafx.h"
 #include "XGetopt.h"
 
+//
+// http://msdn.microsoft.com/en-us/library/windows/desktop/dn369256(v=vs.85).aspx
+//
+typedef struct _SERVICE_LAUNCH_PROTECTED_INFO {
+	DWORD  dwLaunchProtected;
+	} SERVICE_LAUNCH_PROTECTED_INFO, *PSERVICE_LAUNCH_PROTECTED_INFO;
+
+//
+// http://msdn.microsoft.com/en-us/library/windows/desktop/ms684935(v=vs.85).aspx
+//
+#define SERVICE_CONFIG_LAUNCH_PROTECTED 12 
 
 //
 //
@@ -343,6 +354,13 @@ BOOL printService(ENUM_SERVICE_STATUS_PROCESS sService, SC_HANDLE scMgr){
 		fprintf(stdout,"[i] |\n");
 		fprintf(stdout,"[i] +-+-> Failed to open service - %d\n",GetLastError());
 		return false;
+	}
+
+	SERVICE_LAUNCH_PROTECTED_INFO scLaunchProtectedNfo;
+	DWORD dwNeeded = 0;
+	if(QueryServiceConfig2(scService,SERVICE_CONFIG_LAUNCH_PROTECTED,(LPBYTE)&scLaunchProtectedNfo,sizeof(scLaunchProtectedNfo),&dwNeeded) == false) {
+		fprintf(stdout,"[i] |\n");
+		fprintf(stdout,"[i] +-+-> Failed to query launch protection level (only supported by Windows 8.1 and 2012 R2) - %d\n",GetLastError());
 	}
 
 	QueryServiceConfig(scService,NULL,sizeof(qsConfig),&dwBytesNeeded );
