@@ -362,11 +362,20 @@ BOOL printService(ENUM_SERVICE_STATUS_PROCESS sService, SC_HANDLE scMgr){
 	memset(strFilename,0x00,MAX_PATH);
 	if(qsConfig->lpBinaryPathName[0] == '"')
 	{
-
+		char strTemp[MAX_PATH];
+		memset(strTemp,0x00,MAX_PATH);
+		memcpy_s(strTemp,MAX_PATH,&qsConfig->lpBinaryPathName[1],(strlen(qsConfig->lpBinaryPathName) - strlen("\"\"")));
+		sprintf_s(strFilename,MAX_PATH,"%s",strTemp);
 	} 
 	else if(_strnicmp(qsConfig->lpBinaryPathName,"system32",strlen("system32")) == 0 )
 	{
 		sprintf_s(strFilename,MAX_PATH,"C:\\Windows\\%s",qsConfig->lpBinaryPathName);
+	}
+	else if(_strnicmp(qsConfig->lpBinaryPathName,"\\SystemRoot\\",strlen("\\SystemRoot\\")) == 0 )
+	{
+		char strTemp[MAX_PATH];
+		memcpy_s(strTemp,MAX_PATH,&qsConfig->lpBinaryPathName[12],(strlen(qsConfig->lpBinaryPathName) - strlen("\\SystemRoot\\") + 1));
+		sprintf_s(strFilename,MAX_PATH,"C:\\Windows\\%s",strTemp);
 	} 
 	else if (strstr(qsConfig->lpBinaryPathName," ") == 0) 
 	{
