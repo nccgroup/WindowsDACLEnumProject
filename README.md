@@ -68,3 +68,12 @@ The third tool released as part of this project. Will enumerate:
 * Service status, PID, binary path.
 * DACLs associated with with the binaries associated
 * Flag obviously weak DACLs
+
+Tool #4: File System
+-------------
+
+###### Features
+The fourth tool released as part of this project. Will enumerate:
+* Files and access control lists
+* Directories and access control lists
+* Alert on files or directories with access control which appear weak
