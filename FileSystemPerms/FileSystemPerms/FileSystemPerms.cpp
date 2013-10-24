@@ -14,6 +14,8 @@ Released under AGPL see LICENSE for more information
 #include "stdafx.h"
 #include "XGetopt.h"
 
+#define MAGIC (0xa0000000L)
+
 //
 // Globals
 //
@@ -121,9 +123,9 @@ void PrintPermissions(PACL DACL, bool bFile)
 								DWORD dwResult = GetLastError();
 								if(dwResult == ERROR_NONE_MAPPED && bExclude == true){
 									break;
-								} else if( dwResult == ERROR_NONE_MAPPED){
+								} else if( dwResult == ERROR_NONE_MAPPED && bExclude == false){
 									fprintf(stdout,"[i]   |\n");
-									fprintf(stdout,"[i]   +-+-> Allowed - NONMAPPED - SID %s\n", sidToText(sSID));
+									fprintf(stdout,"[i]   +-+-> Allowed 2 - NONMAPPED - SID %s\n", sidToText(sSID));
 								} else if (dwResult != ERROR_NONE_MAPPED){
 									fprintf(stderr,"[!] LookupAccountSid Error 	%u\n", GetLastError());
 									fprintf(stdout,"[i]   |\n");
@@ -144,7 +146,10 @@ void PrintPermissions(PACL DACL, bool bFile)
 							
 						
 							if(bFile == false){
-								if(ACE->Mask & FILE_GENERIC_EXECUTE) fprintf(stdout,",Execute");
+								if(ACE->Mask & FILE_GENERIC_EXECUTE) fprintf(stdout,",Generic Execute");
+								if(ACE->Mask & FILE_GENERIC_READ   ) fprintf(stdout,",Generic Read");
+								if(ACE->Mask & FILE_GENERIC_WRITE   ) fprintf(stdout,",Generic Write");
+								if(ACE->Mask & GENERIC_ALL) fprintf(stdout,",Generic All");
 								
 								if(UsersWeCareAbout(lpDomain,lpName) == true && (ACE->Mask & FILE_DELETE_CHILD)) fprintf(stdout,",Delete diretory and files - Alert");
 								else if(ACE->Mask & FILE_DELETE_CHILD) fprintf(stdout,",Delete diretory and files");
@@ -152,10 +157,16 @@ void PrintPermissions(PACL DACL, bool bFile)
 								if(UsersWeCareAbout(lpDomain,lpName) == true && (ACE->Mask & FILE_ADD_FILE)) fprintf(stdout,",Add File - Alert");
 								else if(ACE->Mask & FILE_ADD_FILE) fprintf(stdout,",Add File");
 								
-								//if(UsersWeCareAbout(lpDomain,lpName) == true && (ACE->Mask & FILE_WRITE_EA)) fprintf(stdout,",Write Extended Attributes - Alert");
-								//else if(ACE->Mask & FILE_WRITE_EA) fprintf(stdout,",Write Extended Attributes");
+								if(UsersWeCareAbout(lpDomain,lpName) == true && (ACE->Mask & FILE_WRITE_EA)) fprintf(stdout,",Write Extended Attributes - Alert");
+								else if(ACE->Mask & FILE_WRITE_EA) fprintf(stdout,",Write Extended Attributes");
+								
+								if(UsersWeCareAbout(lpDomain,lpName) == true && (ACE->Mask & FILE_WRITE_ATTRIBUTES)) fprintf(stdout,",Write Attributes - Alert");
+								else if(ACE->Mask & FILE_WRITE_ATTRIBUTES) fprintf(stdout,",Write Attributes");
+
+								if(ACE->Mask & FILE_READ_EA) fprintf(stdout,",Read Extended Attributes");
 
 								if(ACE->Mask & FILE_READ_ATTRIBUTES) fprintf(stdout,",Read Attributes");
+								
 								if(ACE->Mask & FILE_LIST_DIRECTORY) fprintf(stdout,",List Directory");
 								if(ACE->Mask & FILE_READ_EA) fprintf(stdout,",Read Extended Attributes");
 								if(ACE->Mask & FILE_ADD_SUBDIRECTORY) fprintf(stdout,",Add Subdirectory");
@@ -164,16 +175,28 @@ void PrintPermissions(PACL DACL, bool bFile)
 								else if (ACE->Mask & FILE_TRAVERSE) fprintf(stdout,",Traverse Directory");
 
 								if(ACE->Mask & STANDARD_RIGHTS_READ) fprintf(stdout,",Read DACL");
-								if(ACE->Mask & STANDARD_RIGHTS_WRITE) fprintf(stdout,",Read DACL");
+								if(ACE->Mask & STANDARD_RIGHTS_WRITE) fprintf(stdout,",Write DACL");
 								
+
 								if(UsersWeCareAbout(lpDomain,lpName) == true && (ACE->Mask & WRITE_DAC)) fprintf(stdout,",Change Permissions - Alert");
 								else if(ACE->Mask & WRITE_DAC) fprintf(stdout,",Change Permissions");
 								
 								if(UsersWeCareAbout(lpDomain,lpName) == true && (ACE->Mask & WRITE_OWNER)) fprintf(stdout,",Change Owner - Alert");
-								else if(ACE->Mask & WRITE_OWNER) fprintf(stdout,",Change Owner");
+								else if(ACE->Mask & READ_CONTROL) fprintf(stdout,",Change Owner");
+
+								if(ACE->Mask & READ_CONTROL) fprintf(stdout,",Read Control");
+								if(ACE->Mask & DELETE) fprintf(stdout,",Delete");
+								if(ACE->Mask & SYNCHRONIZE) fprintf(stdout,",Synchronize");
+
+								// http://www.grimes.nildram.co.uk/workshops/secWSNine.htm
+								if(ACE->Mask & MAGIC) fprintf(stdout,",Generic Read OR Generic Write");
 							} 
 							else 
 							{
+								if(ACE->Mask & FILE_GENERIC_EXECUTE) fprintf(stdout,",Generic Execute");
+								if(ACE->Mask & FILE_GENERIC_READ   ) fprintf(stdout,",Generic Read");
+								if(ACE->Mask & FILE_GENERIC_WRITE   ) fprintf(stdout,",Generic Write");
+								if(ACE->Mask & GENERIC_ALL) fprintf(stdout,",Generic All");
 
 								if(ACE->Mask & FILE_GENERIC_EXECUTE) fprintf(stdout,",Execute");
 								if(UsersWeCareAbout(lpDomain,lpName) == true && (ACE->Mask & FILE_WRITE_ATTRIBUTES)) fprintf(stdout,",Write Attributes - Alert");
@@ -199,6 +222,13 @@ void PrintPermissions(PACL DACL, bool bFile)
 								
 								if(UsersWeCareAbout(lpDomain,lpName) == true && (ACE->Mask & WRITE_OWNER)) fprintf(stdout,",Change Owner - Alert");
 								else if(ACE->Mask & WRITE_OWNER) fprintf(stdout,",Change Owner");
+
+								if(ACE->Mask & READ_CONTROL) fprintf(stdout,",Read Control");
+								if(ACE->Mask & DELETE) fprintf(stdout,",Delete");
+								if(ACE->Mask & SYNCHRONIZE) fprintf(stdout,",Synchronize");
+
+								// http://www.grimes.nildram.co.uk/workshops/secWSNine.htm
+								if(ACE->Mask & MAGIC) fprintf(stdout,",Generic Read OR Generic Write");
 
 							}
 							fprintf(stdout,"\n");
