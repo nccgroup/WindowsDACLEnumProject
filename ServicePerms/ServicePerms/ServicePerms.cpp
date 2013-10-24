@@ -370,11 +370,14 @@ BOOL printService(ENUM_SERVICE_STATUS_PROCESS sService, SC_HANDLE scMgr){
 				fprintf(stdout,"None\n");	
 				break;
 			case 1: // SERVICE_LAUNCH_PROTECTED_WINDOWS
-				fprintf(stdout,"Windows Internal\n");		
+				fprintf(stdout,"Windows Internal\n");	
+				break;
 			case 2: // SERVICE_LAUNCH_PROTECTED_WINDOWS_LIGHT
 				fprintf(stdout,"Windows Internal Light\n");		
+				break;
 			case 3: // SERVICE_LAUNCH_PROTECTED_ANTIMALWARE_LIGHT
 				fprintf(stdout,"Windows Antimalware Light\n");		
+				break;
 			default:
 				break;
 		}
