@@ -361,6 +361,23 @@ BOOL printService(ENUM_SERVICE_STATUS_PROCESS sService, SC_HANDLE scMgr){
 	if(QueryServiceConfig2(scService,SERVICE_CONFIG_LAUNCH_PROTECTED,(LPBYTE)&scLaunchProtectedNfo,sizeof(scLaunchProtectedNfo),&dwNeeded) == false) {
 		fprintf(stdout,"[i] |\n");
 		fprintf(stdout,"[i] +-+-> Failed to query launch protection level (only supported by Windows 8.1 and 2012 R2) - %d\n",GetLastError());
+	} else {
+		fprintf(stdout,"[i] |\n");
+		fprintf(stdout,"[i] +-+-> Launch protection: ");
+
+		switch (scLaunchProtectedNfo.dwLaunchProtected){
+			case 0: // SERVICE_LAUNCH_PROTECTED_NONE
+				fprintf(stdout,"None\n");	
+				break;
+			case 1: // SERVICE_LAUNCH_PROTECTED_WINDOWS
+				fprintf(stdout,"Windows Internal\n");		
+			case 2: // SERVICE_LAUNCH_PROTECTED_WINDOWS_LIGHT
+				fprintf(stdout,"Windows Internal Light\n");		
+			case 3: // SERVICE_LAUNCH_PROTECTED_ANTIMALWARE_LIGHT
+				fprintf(stdout,"Windows Antimalware Light\n");		
+			default:
+				break;
+		}
 	}
 
 	QueryServiceConfig(scService,NULL,sizeof(qsConfig),&dwBytesNeeded );
