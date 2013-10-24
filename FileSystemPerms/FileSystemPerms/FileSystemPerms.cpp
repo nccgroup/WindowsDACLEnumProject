@@ -15,6 +15,11 @@ Released under AGPL see LICENSE for more information
 #include "XGetopt.h"
 
 //
+// Globals
+//
+bool	bExclude=false;
+
+//
 //
 //
 //
@@ -22,6 +27,8 @@ bool UsersWeCareAbout(char *lpDomain, char *lpName)
 {
 	
 	if(strcmp(lpDomain,"NT AUTHORITY") == 0 && strcmp(lpName,"SYSTEM") ==0 ) return false;
+	if(strcmp(lpDomain,"NT AUTHORITY") == 0 && strcmp(lpName,"NETWORK SERVICE") ==0 ) return false;
+	if(strcmp(lpDomain,"NT AUTHORITY") == 0 && strcmp(lpName,"LOCAL SERVICE") ==0 ) return false;
 	else if(strcmp(lpDomain,"BUILTIN") == 0 && strcmp(lpName,"Users") ==0) return true;
 	else if(strcmp(lpDomain,"BUILTIN") == 0) return false;
 	else if(strcmp(lpDomain,"NT SERVICE") == 0) return false;
@@ -112,7 +119,9 @@ void PrintPermissions(PACL DACL, bool bFile)
 							if( !LookupAccountSidA( NULL, sSID, lpName, &dwSize, lpDomain, &dwSize, &SNU ) ) {
 								
 								DWORD dwResult = GetLastError();
-								if( dwResult == ERROR_NONE_MAPPED){
+								if(dwResult == ERROR_NONE_MAPPED && bExclude == true){
+									break;
+								} else if( dwResult == ERROR_NONE_MAPPED){
 									fprintf(stdout,"[i]   |\n");
 									fprintf(stdout,"[i]   +-+-> Allowed - NONMAPPED - SID %s\n", sidToText(sSID));
 								} else if (dwResult != ERROR_NONE_MAPPED){
@@ -192,7 +201,7 @@ void PrintPermissions(PACL DACL, bool bFile)
 								else if(ACE->Mask & WRITE_OWNER) fprintf(stdout,",Change Owner");
 
 							}
-
+							fprintf(stdout,"\n");
 							break;
 						// Denied ACE
 						case ACCESS_DENIED_ACE_TYPE:
@@ -202,7 +211,7 @@ void PrintPermissions(PACL DACL, bool bFile)
 							break;
 					}
 
-					fprintf(stdout,"\n");
+					
 				}
 			} else {
 				DWORD dwError = GetLastError();
@@ -270,6 +279,7 @@ bool ListFiles(char *strPath) {
 				char strFoo[MAX_PATH];
 				sprintf_s(strFoo,MAX_PATH,"%s\\%s",strPath,ffdThis.cFileName);
 				fprintf(stdout,"[directory] %s \n",strFoo);
+				GetHandleBeforePrint(strFoo);
 				ListFiles(strFoo);
             }
 			else 
@@ -302,8 +312,9 @@ bool ListFiles(char *strPath) {
 // 
 void PrintHelp(char *strExe){
 
-	fprintf (stdout,"    i.e. %s [-p] [-h]\n",strExe);
+	fprintf (stdout,"    i.e. %s [-p] [-x] [-h]\n",strExe);
 	fprintf (stdout,"    -p [PATH] Path to use instead of C:\\\n");	
+	fprintf (stdout,"    -x exclude non mapped SIDs from alerts\n");
 	fprintf (stdout,"\n");
 	ExitProcess(1);
 }
@@ -331,11 +342,14 @@ int _tmain(int argc, _TCHAR* argv[])
 	printf("[*] NCC Group Plc - http://www.nccgroup.com/ \n");
 
 	// Extract all the options
-	while ((chOpt = getopt(argc, argv, _T("p:h"))) != EOF) 
+	while ((chOpt = getopt(argc, argv, _T("p:hx"))) != EOF) 
 	switch(chOpt)
 	{
 		case _T('p'):
 			strPath=optarg;
+			break;
+		case _T('x'):
+			bExclude=true;
 			break;
 		case _T('h'): // Help
 			bHelp=true;
