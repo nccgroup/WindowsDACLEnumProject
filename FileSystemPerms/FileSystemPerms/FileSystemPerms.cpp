@@ -267,7 +267,7 @@ bool GetHandleBeforePrint(char* strFile){
 	PSECURITY_DESCRIPTOR* secDesc = (PSECURITY_DESCRIPTOR*)LocalAlloc(LMEM_FIXED,dwBytesNeeded);
 	if(GetFileSecurity (strFile,DACL_SECURITY_INFORMATION,secDesc,dwSize,&dwBytesNeeded) == false){
 		fprintf(stdout,"[i] |\n");
-		fprintf(stdout,"[i] +-+-> Failed to query service object security - %d\n",GetLastError());
+		fprintf(stdout,"[i] +-+-> Failed to query file system object security - %d\n",GetLastError());
 		return false;
 	}
 	
