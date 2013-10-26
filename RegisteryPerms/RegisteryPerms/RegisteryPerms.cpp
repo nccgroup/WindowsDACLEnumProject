@@ -319,10 +319,15 @@ bool ListRegistry(HKEY hKey, char *strSubKey, char *strKeyPath, char *strParent)
 // 
 void PrintHelp(char *strExe){
 
-	fprintf (stdout,"    i.e. %s [-s] [-x] [-h]\n",strExe);
+	fprintf (stdout,"    i.e. %s [-s] [-x] [-r <hive>] [-h]\n",strExe);
 	fprintf (stdout,"    -h this help\n");
 	fprintf (stdout,"    -x exclude non mapped SIDs from alerts\n");
 	fprintf (stdout,"    -s exclude SYSTEM and Administrators from all output\n");
+	fprintf (stdout,"    -r only dump this hive\n");
+	fprintf (stdout,"       1 - HKEY_CLASSES_ROOT\n");
+	fprintf (stdout,"       2 - HKEY_USERS\n");
+	fprintf (stdout,"       3 - HKEY_LOCAL_MACHINE\n");
+	fprintf (stdout,"       4 - HKEY_CURRENT_CONFIG\n");
 	fprintf (stdout,"\n");
 	ExitProcess(1);
 }
@@ -337,13 +342,14 @@ int _tmain(int argc, _TCHAR* argv[])
 	bool	bHelp=false;
 	TCHAR	*strPath=NULL;
 	char	chOpt;
+	DWORD	intHive=0;
 
 	printf("[*] Windows DACL Enumeration Project - https://github.com/nccgroup/WindowsDACLEnumProject - RegistryPerms\n");
 	printf("[*] NCC Group Plc - http://www.nccgroup.com/ \n");
 	printf("[*] -h for help \n");
 
 	// Extract all the options
-	while ((chOpt = getopt(argc, argv, _T("hxs"))) != EOF) 
+	while ((chOpt = getopt(argc, argv, _T("r:hxs"))) != EOF) 
 	switch(chOpt)
 	{
 		case _T('x'):
@@ -355,16 +361,57 @@ int _tmain(int argc, _TCHAR* argv[])
 		case _T('h'): // Help
 			bHelp=true;
 			break;
+		case _T('r'):
+			intHive=atoi(optarg);
+			break;
 		default:
 			fwprintf(stderr,L"[!] No handler - %c\n", chOpt);
 			break;
 	}
 
-	ListRegistry(HKEY_CLASSES_ROOT,NULL,NULL,"HKEY_CLASSES_ROOT");
-	ListRegistry(HKEY_USERS,NULL,NULL,"HKEY_USERS");
-	ListRegistry(HKEY_LOCAL_MACHINE,NULL,NULL,"HKEY_LOCAL_MACHINE");
-	ListRegistry(HKEY_CURRENT_CONFIG,NULL,NULL,"HKEY_CURRENT_CONFIG");
-	
+	if(bHelp)
+	{
+		PrintHelp(argv[0]);
+		return -1;
+	}
+
+	if(intHive > 4){
+		fprintf(stderr,"[!] Invalid hive reference\n");
+		PrintHelp(argv[0]);
+		return -1;
+	}
+
+	if(intHive ==0){
+		ListRegistry(HKEY_CLASSES_ROOT,NULL,NULL,"HKEY_CLASSES_ROOT");
+		ListRegistry(HKEY_USERS,NULL,NULL,"HKEY_USERS");
+		ListRegistry(HKEY_LOCAL_MACHINE,NULL,NULL,"HKEY_LOCAL_MACHINE");
+		ListRegistry(HKEY_CURRENT_CONFIG,NULL,NULL,"HKEY_CURRENT_CONFIG");
+	} 
+	else
+	{
+		switch(intHive){
+			case 1:
+			ListRegistry(HKEY_CLASSES_ROOT,NULL,NULL,"HKEY_CLASSES_ROOT");
+			break;
+
+			case 2:
+				ListRegistry(HKEY_USERS,NULL,NULL,"HKEY_USERS");
+				break;
+
+			case 3:
+				ListRegistry(HKEY_LOCAL_MACHINE,NULL,NULL,"HKEY_LOCAL_MACHINE");
+				break;
+
+			case 4:
+				ListRegistry(HKEY_CURRENT_CONFIG,NULL,NULL,"HKEY_CURRENT_CONFIG");
+				break;
+
+			default:
+				fprintf(stderr,"[!] Invalid hive reference\n");
+				PrintHelp(argv[0]);
+				return -1;
+		}
+	}
   
 	return 0;
 }
