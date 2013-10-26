@@ -77,3 +77,14 @@ The fourth tool released as part of this project. Will enumerate:
 * Files and access control lists
 * Directories and access control lists
 * Alert on files or directories with access control which appear weak
+
+
+Tool #5: Registry
+-------------
+
+###### Features
+The fifth tool released as part of this project. Will enumerate:
+* Registry keys and access control lists
+* Alert on files or directories with access control which appear weak
+* -s parameter to exclude all but the most suspicious output (see -h).
+* -x paramater to only alert on suspicious output (see -h).
