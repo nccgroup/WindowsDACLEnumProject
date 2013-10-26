@@ -247,6 +247,7 @@ bool GetDACLBeforePrint(HKEY hkThis){
 
 	PrintPermissions(DACL);
 
+	LocalFree(secDesc);
 	return true;
 }
 
@@ -255,7 +256,7 @@ bool GetDACLBeforePrint(HKEY hkThis){
 //
 //
 //
-bool ListRegistry(HKEY hKey, char *strSubKey, char *strKeyPath) {
+bool ListRegistry(HKEY hKey, char *strSubKey, char *strKeyPath, char *strParent) {
     
 	// http://msdn.microsoft.com/en-us/library/windows/desktop/ms724872(v=vs.85).aspx
 	//
@@ -270,7 +271,7 @@ bool ListRegistry(HKEY hKey, char *strSubKey, char *strKeyPath) {
 
 	DWORD dwRet = RegOpenKey(hKey,strSubKey,&hkThis);
 	if(dwRet!= ERROR_SUCCESS){
-		fprintf(stderr,"[!] Coudln't open registry key - %s\\%s - %d\n", "HKEY_LOCAL_MACHINE",strSubKey,dwRet);
+		fprintf(stderr,"[!] Coudln't open registry key - %s\\%s - %d\n", strParent,strSubKey,dwRet);
 		return false;
 	}
 
@@ -284,7 +285,7 @@ bool ListRegistry(HKEY hKey, char *strSubKey, char *strKeyPath) {
 		memset(strRegPath,0x00,sizeof(strRegPath));
 	}
 
-	fprintf(stdout,"[Key] %s \n",strRegPath);
+	fprintf(stdout,"[Key] %s\\%s \n",strParent,strRegPath);
 	GetDACLBeforePrint(hkThis);
 
 	dwRet = 0;
@@ -299,10 +300,10 @@ bool ListRegistry(HKEY hKey, char *strSubKey, char *strKeyPath) {
 			break;
 		}
 		else if (dwRet == ERROR_SUCCESS){
-			ListRegistry(hkThis,strName,strRegPath);
+			ListRegistry(hkThis,strName,strRegPath,strParent);
 			dwIdx++;
 		} else {
-			fprintf(stderr,"[!] Error %d\n",dwRet);
+			fprintf(stderr,"[!] RegEnumKeyEx error %d\n",dwRet);
 		}
 	} while(dwRet == ERROR_SUCCESS);
 
@@ -358,8 +359,10 @@ int _tmain(int argc, _TCHAR* argv[])
 			break;
 	}
 
-	
-	ListRegistry(HKEY_LOCAL_MACHINE,NULL,NULL);
+	ListRegistry(HKEY_CLASSES_ROOT,NULL,NULL,"HKEY_CLASSES_ROOT");
+	ListRegistry(HKEY_USERS,NULL,NULL,"HKEY_USERS");
+	ListRegistry(HKEY_LOCAL_MACHINE,NULL,NULL,"HKEY_LOCAL_MACHINE");
+	ListRegistry(HKEY_CURRENT_CONFIG,NULL,NULL,"HKEY_CURRENT_CONFIG");
 	
   
 	return 0;
