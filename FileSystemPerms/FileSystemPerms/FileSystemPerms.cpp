@@ -370,6 +370,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	printf("[*] Windows DACL Enumeration Project - https://github.com/nccgroup/WindowsDACLEnumProject - FileSystemPerms\n");
 	printf("[*] NCC Group Plc - http://www.nccgroup.com/ \n");
+	printf("[*] -h for help \n");
 
 	// Extract all the options
 	while ((chOpt = getopt(argc, argv, _T("p:hx"))) != EOF) 

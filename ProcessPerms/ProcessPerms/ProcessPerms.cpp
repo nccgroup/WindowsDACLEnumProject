@@ -741,6 +741,10 @@ int _tmain(int argc, _TCHAR* argv[])
 	DWORD	dwPID=0;
 	char	chOpt;
 
+	printf("[*] Windows DACL Enumeration Project - https://github.com/nccgroup/WindowsDACLEnumProject - ProcessPerms\n");
+	printf("[*] NCC Group Plc - http://www.nccgroup.com/ \n");
+	printf("[*] -h for help \n");
+
 	SetConsoleTextAttribute(hConsole, 7);
 
 	// Extract all the options

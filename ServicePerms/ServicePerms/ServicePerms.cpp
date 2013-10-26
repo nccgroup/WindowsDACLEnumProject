@@ -539,6 +539,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	printf("[*] Windows DACL Enumeration Project - https://github.com/nccgroup/WindowsDACLEnumProject - ServicePerms\n");
 	printf("[*] NCC Group Plc - http://www.nccgroup.com/ \n");
+	printf("[*] -h for help \n");
 
 	SC_HANDLE scMgr = OpenSCManager(NULL,NULL, GENERIC_READ);
 	

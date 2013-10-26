@@ -271,7 +271,7 @@ bool ListRegistry(HKEY hKey, char *strSubKey, char *strKeyPath, char *strParent)
 
 	DWORD dwRet = RegOpenKey(hKey,strSubKey,&hkThis);
 	if(dwRet!= ERROR_SUCCESS){
-		fprintf(stderr,"[!] Coudln't open registry key - %s\\%s - %d\n", strParent,strSubKey,dwRet);
+		fprintf(stderr,"[!] Coudln't open registry key - %s\\%s for %s- %d\n", strParent,strSubKey,strKeyPath,dwRet);
 		return false;
 	}
 
@@ -340,6 +340,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	printf("[*] Windows DACL Enumeration Project - https://github.com/nccgroup/WindowsDACLEnumProject - RegistryPerms\n");
 	printf("[*] NCC Group Plc - http://www.nccgroup.com/ \n");
+	printf("[*] -h for help \n");
 
 	// Extract all the options
 	while ((chOpt = getopt(argc, argv, _T("hxs"))) != EOF) 

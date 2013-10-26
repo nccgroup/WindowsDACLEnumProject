@@ -293,8 +293,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	DWORD dwSessionInfo=0;
 	WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE,0,1,&pSessionInfo,&dwSessionInfo);
 	
-	printf("[*] Windows DACL Enumeration Project - https://github.com/nccgroup/WindowsDACLEnumProject - WinStationsAnDesktopPerms\n");
+	printf("[*] Windows DACL Enumeration Project - https://github.com/nccgroup/WindowsDACLEnumProject - WinStationsAndDesktopsPerms\n");
 	printf("[*] NCC Group Plc - http://www.nccgroup.com/ \n");
+	printf("[*] -h for help \n");
 
 	SetPrivilege(GetCurrentProcess(),SE_DEBUG_NAME);
 	
