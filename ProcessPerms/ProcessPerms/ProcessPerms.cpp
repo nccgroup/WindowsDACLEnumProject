@@ -12,11 +12,20 @@ Released under AGPL see LICENSE for more information
 
 
 #include "stdafx.h"
+#include "FilePerms.h"
+#include "Common.h"
+#include "Token.h"
 #include "XGetopt.h"
 
 // global 
 HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
+
+//
+//
+//
+//
+//
 BOOL CALLBACK EnumWindowStationProc(LPTSTR lpszWindowStation, LPARAM lParam)
 {
 	fprintf(stdout,"[win] found %s\n",lpszWindowStation);
@@ -27,6 +36,10 @@ BOOL CALLBACK EnumWindowStationProc(LPTSTR lpszWindowStation, LPARAM lParam)
 	return true;
 }
 
+//
+//
+//
+//
 //
 BOOL WindowStationEnumOpen(){
 	EnumWindowStations(&EnumWindowStationProc,NULL);
@@ -274,47 +287,6 @@ DWORD GetProcessIntegrityLevel(HANDLE hProcess,bool bPrint)
 	return dwRet;
 }
 
-//
-// Function	: sidToText
-// Role		: Converts a binary SID to a nice one
-// Notes	: http://win32.mvps.org/security/dumpacl/dumpacl.cpp
-//
-const char *sidToText( PSID psid )
-{
-	// S-rev- + SIA + subauthlen*maxsubauth + terminator
-	static char buf[15 + 12 + 12*SID_MAX_SUB_AUTHORITIES + 1];
-	char *p = &buf[0];
-	PSID_IDENTIFIER_AUTHORITY psia;
-	DWORD numSubAuths, i;
-
-	// Validate the binary SID.
-
-	if ( ! IsValidSid( psid ) )
-		return FALSE;
-
-	psia = GetSidIdentifierAuthority( psid );
-
-	p = buf;
-	p += _snprintf_s( p, 15 + 12 + 12*SID_MAX_SUB_AUTHORITIES + 1, &buf[sizeof buf] - p, "S-%lu-", 0x0f & *( (byte *) psid ) );
-
-	if ( ( psia->Value[0] != 0 ) || ( psia->Value[1] != 0 ) )
-		p += _snprintf_s( p,15 + 12 + 12*SID_MAX_SUB_AUTHORITIES + 1, &buf[sizeof buf] - p, "0x%02hx%02hx%02hx%02hx%02hx%02hx",
-			(USHORT) psia->Value[0], (USHORT) psia->Value[1],
-			(USHORT) psia->Value[2], (USHORT) psia->Value[3],
-			(USHORT) psia->Value[4], (USHORT) psia->Value[5] );
-	else
-		p += _snprintf_s( p, 15 + 12 + 12*SID_MAX_SUB_AUTHORITIES + 1, &buf[sizeof buf] - p, "%lu", (ULONG) ( psia->Value[5] ) +
-			(ULONG) ( psia->Value[4] << 8 ) + (ULONG) ( psia->Value[3] << 16 ) +
-			(ULONG) ( psia->Value[2] << 24 ) );
-
-	// Add SID subauthorities to the string.
-
-	numSubAuths = *GetSidSubAuthorityCount( psid );
-	for ( i = 0; i < numSubAuths; ++ i )
-		p += _snprintf_s( p, 15 + 12 + 12*SID_MAX_SUB_AUTHORITIES + 1,&buf[sizeof buf] - p, "-%lu", *GetSidSubAuthority( psid, i ) );
-
-	return buf;
-}
 
 //
 // Function	: PrintPermissions
@@ -585,7 +557,7 @@ DWORD EnumerateThreads(DWORD dwPID, char *strProc, bool bSystem,bool bExclude){
 // Role		: Basic process information
 // Notes	: 
 // 
-void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD dwPID,bool bExclude)
+void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD dwPID,bool bExclude,bool bTokens)
 {
 	DWORD intCount, dwRet, dwMods;
 	HANDLE hProcess;
@@ -593,11 +565,14 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 	char cProcess[MAX_PATH];
 	char cModule[MAX_PATH];
 	
+	bool bFirstError = false;
+
 	//PROCESS_ALL_ACCESS |PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
 	hProcess = OpenProcess(PROCESS_ALL_ACCESS |PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, dwPID);
 	if (hProcess == NULL)
 	{
 		if(GetLastError()==5){
+			bFirstError = true;
 			hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, dwPID);
 			
 			if (hProcess == NULL){
@@ -654,13 +629,23 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 	bool bSystem=UserForPID(dwPID);
 	fprintf(stdout,"\n");
 
-	if(bPerms){
+	if(bPerms && !bFirstError){
 		fprintf(stdout,"[i] %s\n", "|");
 		fprintf(stdout,"[i] %s [%s]\n", "+-+-> Permissions", cProcess);
 		PrintPermissions(hProcess,cProcess,bSystem,false,dwPID,bExclude);
 	}
 
-	if(bThreads){
+	if(bTokens && !bFirstError){
+		HANDLE hProcToken = NULL;
+		// TOKEN_READ|TOKEN_QUERY_SOURCE
+		if(OpenProcessToken(hProcess,TOKEN_READ|TOKEN_QUERY_SOURCE,&hProcToken) == true){
+			TokenProcess(hProcToken);
+		} else {
+			fprintf(stderr,"[!] OpenProcessToken (%d),%d\n", dwPID, GetLastError());
+		}
+	}
+
+	if(bThreads && !bFirstError){
 		fprintf(stdout,"[i] %s\n", "|");
 		fprintf(stdout,"[i] %s [%s]\n", "+-+-> Threads", cProcess);
 		if(EnumerateThreads(dwPID,cProcess,bSystem,bExclude)==0){
@@ -668,14 +653,15 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 		}
 	}
 
-	if(bModules){
+	if(bModules && !bFirstError){
 		fprintf(stdout,"[i] %s\n", "|");
-		fprintf(stdout,"[i] %s [%s]\n", "+-+-> Modules", cModule);
+		fprintf(stdout,"[i] %s\n", "+-+-> Modules");
 		for(intCount=0;intCount<dwMods;intCount++)
 		{
 			GetModuleFileNameEx(hProcess,hModule[intCount],cModule,MAX_PATH);
 			fprintf(stdout,"[i] %s\n", "  |");
-			fprintf(stdout,"[i] %s [%s]\n", "  +--> Module", cModule);
+			fprintf(stdout,"[i] %s [%s]\n", "  +-+-> Module", cModule);
+			GetHandleBeforePrint(cModule);
 		}
 	}
 
@@ -687,7 +673,7 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 // Role		: Basic process running
 // Notes	: 
 // 
-void EnumerateProcesses(bool bModules, bool bPerms, bool bThreads, bool bExclude)
+void EnumerateProcesses(bool bModules, bool bPerms, bool bThreads, bool bExclude, bool bTokens)
 {
 	DWORD dwPIDArray[2048], dwRet, dwPIDS, intCount;
 
@@ -702,7 +688,7 @@ void EnumerateProcesses(bool bModules, bool bPerms, bool bThreads, bool bExclude
 
 	for(intCount=0;intCount<dwPIDS;intCount++)
 	{
-		EnumerateProcessInformation(bModules,bPerms,bThreads,dwPIDArray[intCount],bExclude);
+		EnumerateProcessInformation(bModules,bPerms,bThreads,dwPIDArray[intCount],bExclude, bTokens);
 	}
 }
 
@@ -714,10 +700,11 @@ void EnumerateProcesses(bool bModules, bool bPerms, bool bThreads, bool bExclude
 // 
 void PrintHelp(char *strExe){
 
-	fprintf (stdout,"    i.e. %s [-p] [-m] [-t] [-o] [-x] [-h]\n",strExe);
+	fprintf (stdout,"    i.e. %s [-p] [-m] [-t] [-k] [-o] [-x] [-v] [-h]\n",strExe);
 	fprintf (stdout,"    -p Process permissions\n");
 	fprintf (stdout,"    -m Modules\n");
 	fprintf (stdout,"    -t Threads and permissions\n");
+	fprintf (stdout,"    -k Dump token information\n");
 	fprintf (stdout,"    -o [PID] just analyse this specific PID\n");
 	fprintf (stdout,"    -x exclude non mapped SIDs from alerts\n");
 	fprintf (stdout,"\n");
@@ -738,6 +725,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	bool	bModules=false;
 	bool	bThreadsandPerms=false;
 	bool	bExclude=false;
+	bool	bTokens=false;
 	DWORD	dwPID=0;
 	char	chOpt;
 
@@ -748,7 +736,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	SetConsoleTextAttribute(hConsole, 7);
 
 	// Extract all the options
-	while ((chOpt = getopt(argc, argv, _T("o:pmtnxh"))) != EOF) 
+	while ((chOpt = getopt(argc, argv, _T("o:pmtknxh"))) != EOF) 
 	switch(chOpt)
 	{
 		case _T('p'):
@@ -763,6 +751,9 @@ int _tmain(int argc, _TCHAR* argv[])
 		case _T('o'):
 			dwPID = _tstoi(optarg);
 			fprintf(stdout,"[!] %d\n", dwPID);
+			break;
+		case _T('k'):
+			bTokens = true;
 			break;
 		case _T('x'):
 			bExclude=true;
@@ -785,12 +776,10 @@ int _tmain(int argc, _TCHAR* argv[])
 		return 1;
 	}
 
-	//WindowStationEnumOpen();
-
 	if(dwPID ==0){
-		EnumerateProcesses(bModules,bProcPerms,bThreadsandPerms,bExclude);
+		EnumerateProcesses(bModules,bProcPerms,bThreadsandPerms,bExclude,bTokens);
 	} else {
-		EnumerateProcessInformation(bModules,bProcPerms,bThreadsandPerms,dwPID,bExclude);
+		EnumerateProcessInformation(bModules,bProcPerms,bThreadsandPerms,dwPID,bExclude,bTokens);
 	}
 
 	return 0;
