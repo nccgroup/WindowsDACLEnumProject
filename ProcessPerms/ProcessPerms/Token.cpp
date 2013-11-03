@@ -73,9 +73,9 @@ BOOL TokenProcess(HANDLE hToken){
 	TOKEN_TYPE *tokType;
 	SECURITY_IMPERSONATION_LEVEL *tokImpersonationLvl;
 	TOKEN_STATISTICS *tokStats;
-	DWORD *tokSessionID;
+	DWORD tokSessionID;
 	TOKEN_GROUPS_AND_PRIVILEGES *tokGrpPrivs;
-	DWORD *dwSandboxInert;
+	DWORD dwSandboxInert;
 	TOKEN_ORIGIN *tokOrigin;
 	TOKEN_ELEVATION_TYPE *tokElevType;
 	TOKEN_LINKED_TOKEN *tokLinkedToken;
@@ -97,6 +97,7 @@ BOOL TokenProcess(HANDLE hToken){
 	fprintf(stdout,"[i] +-+-> Token [%08x]\n",hToken);
 
 	
+	// User
 	GetTokenInformation(hToken,TokenUser,NULL,0,&dwRet);
 	tokUser = (TOKEN_USER*)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,dwRet);
 	if(GetTokenInformation(hToken,TokenUser,tokUser,dwRet,&dwRet) == true){
@@ -116,6 +117,7 @@ BOOL TokenProcess(HANDLE hToken){
 	HeapFree(GetProcessHeap(),NULL,tokUser);
 
 
+	// Groups
 	GetTokenInformation(hToken,TokenGroups,NULL,0,&dwRet);
 	tokGroups = (TOKEN_GROUPS*)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,dwRet);
 	if(GetTokenInformation(hToken,TokenGroups,tokGroups,dwRet,&dwRet) == true){
@@ -178,6 +180,84 @@ BOOL TokenProcess(HANDLE hToken){
 		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
 	}
 	HeapFree(GetProcessHeap(),NULL,tokGroups);
+
+	// Privs
+	GetTokenInformation(hToken,TokenPrivileges,NULL,0,&dwRet);
+	tokPrivs = (TOKEN_PRIVILEGES*)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,dwRet);
+	if(GetTokenInformation(hToken,TokenPrivileges,tokPrivs,dwRet,&dwRet) == true){
+		fprintf(stdout,"[i]    |\n");
+		fprintf(stdout,"[i]    +-+-> Privileges - %d\n",tokPrivs->PrivilegeCount);
+		for(DWORD dwCount=0;dwCount<tokPrivs->PrivilegeCount;dwCount++){
+			DWORD dwSize = 2048;
+			char lpName[2048];
+
+			LUID lFoo = tokPrivs->Privileges[dwCount].Luid;
+			if(LookupPrivilegeName(NULL,&lFoo,lpName,&dwSize)){
+				fprintf(stdout,"[i]      +-> Name: %s\n",lpName);
+			} else {
+				fprintf(stdout,"[i]      +-> Name: Unknown (%d)\n",GetLastError());
+			}
+			
+
+		}
+	} else {
+		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
+	}
+	HeapFree(GetProcessHeap(),NULL,tokPrivs);
+	
+	// Token owner
+	GetTokenInformation(hToken,TokenOwner,NULL,0,&dwRet);
+	tokOwner = (TOKEN_OWNER*)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,dwRet);
+	if(GetTokenInformation(hToken,TokenOwner,tokOwner,dwRet,&dwRet) == true){
+		
+		fprintf(stdout,"[i]    |\n");
+		DWORD dwSize = 2048;
+		char lpName[2048];
+		char lpDomain[2048];
+		SID_NAME_USE SNU;
+		if( LookupAccountSidA( NULL, tokOwner->Owner, lpName, &dwSize, lpDomain, &dwSize, &SNU ) ){
+			fprintf(stdout,"[i]    +-+-> Owner: %s\\%s\n",lpDomain,lpName);
+		} else {
+			fprintf(stdout,"[i]    +-+-> Owner: Unkown\n");
+		}
+
+	} else {
+		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
+	}
+	HeapFree(GetProcessHeap(),NULL,tokOwner);
+
+	// Primary group 
+	GetTokenInformation(hToken,TokenPrimaryGroup,NULL,0,&dwRet);
+	tokPrimGroup = (TOKEN_PRIMARY_GROUP *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,dwRet);
+	if(GetTokenInformation(hToken,TokenPrimaryGroup,tokPrimGroup,dwRet,&dwRet) == true){
+		
+		fprintf(stdout,"[i]    |\n");
+		DWORD dwSize = 2048;
+		char lpName[2048];
+		char lpDomain[2048];
+		SID_NAME_USE SNU;
+		if( LookupAccountSidA( NULL, tokPrimGroup->PrimaryGroup, lpName, &dwSize, lpDomain, &dwSize, &SNU ) ){
+			fprintf(stdout,"[i]    +-+-> Primary group: %s\\%s\n",lpDomain,lpName);
+		} else {
+			fprintf(stdout,"[i]    +-+-> Primary group: Unkown\n");
+		}
+
+	} else {
+		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
+	}
+	HeapFree(GetProcessHeap(),NULL,tokPrimGroup);
+
+	// Sandbox inert
+	if(GetTokenInformation(hToken,TokenSandBoxInert,&dwSandboxInert,sizeof(dwSandboxInert),&dwRet)){
+		
+		if(dwSandboxInert > 0){
+			fprintf(stdout,"[i]    |\n");
+			fprintf(stdout,"[i]    +-+-> Alert - Sanbox inert\n");
+		}
+
+	} else {
+		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
+	}
 
 	return true;
 }
