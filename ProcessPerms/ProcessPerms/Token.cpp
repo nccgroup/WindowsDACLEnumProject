@@ -252,7 +252,7 @@ BOOL TokenProcess(HANDLE hToken){
 		
 		if(dwSandboxInert > 0){
 			fprintf(stdout,"[i]    |\n");
-			fprintf(stdout,"[i]    +-+-> Alert - Sanbox inert\n");
+			fprintf(stdout,"[i]    +-+-> Alert - Sandbox inert\n");
 		}
 
 	} else {
