@@ -488,7 +488,7 @@ void PrintPermissions( HANDLE hObject, char *strProc, bool bSystem, bool bThread
 // Role		: Enumerate threads for a PID
 // Notes	: Based in part on - http://msdn.microsoft.com/en-us/library/ms686852(VS.85).aspx
 // 
-DWORD EnumerateThreads(DWORD dwPID, char *strProc, bool bSystem,bool bExclude){
+DWORD EnumerateThreads(DWORD dwPID, char *strProc, bool bSystem,bool bExclude, bool bPerms){
 
 	HANDLE hThreadSnap = INVALID_HANDLE_VALUE; 
 	HANDLE hThread=NULL;
@@ -537,10 +537,28 @@ DWORD EnumerateThreads(DWORD dwPID, char *strProc, bool bSystem,bool bExclude){
 			} else{
 				fprintf(stdout,"[i] %s [0x%08X - %d - %s]\n", "  +--> Thread", te32.th32ThreadID, te32.th32ThreadID,strName);
 			}*/
+
 			fprintf(stdout,"[i] %s [0x%08X - %d]\n", "  +--> Thread", te32.th32ThreadID, te32.th32ThreadID);
 			hThread=OpenThread(THREAD_ALL_ACCESS,false,te32.th32ThreadID);
 			if( hThread != INVALID_HANDLE_VALUE ) {
-				PrintPermissions(hThread,strProc,bSystem,true,dwPID,bExclude);
+				if(bPerms) PrintPermissions(hThread,strProc,bSystem,true,dwPID,bExclude);
+				else {
+					HANDLE ThreadTokenHandle;
+					if(OpenThreadToken(hThread,TOKEN_READ|TOKEN_QUERY_SOURCE,true,&ThreadTokenHandle))
+					{
+						fprintf(stdout,"[i]     +---> Alert - Thread token\n");
+						TokenProcess(ThreadTokenHandle);
+					} 
+					else 
+					{	
+						if(GetLastError() == ERROR_NO_TOKEN){
+							
+							fprintf(stdout,"[i]     +---> No token\n",GetLastError());
+						} else {
+							fprintf(stderr,"[!] OpenThreadToken %d\n",GetLastError());
+						}
+					}
+				}
 			}
 		}
 	} while( Thread32Next(hThreadSnap, &te32 ) ); 
@@ -643,12 +661,19 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 		} else {
 			fprintf(stderr,"[!] OpenProcessToken (%d),%d\n", dwPID, GetLastError());
 		}
+
+		fprintf(stdout,"[i] %s\n", "|");
+		fprintf(stdout,"[i] %s [%s]\n", "+-+-> Thread Tokens", cProcess);
+		if(EnumerateThreads(dwPID,cProcess,bSystem,bExclude,false)==0){
+			fprintf(stdout,"[i] %s\n", "  +--> No Threads");
+		}
+
 	}
 
 	if(bThreads && !bFirstError){
 		fprintf(stdout,"[i] %s\n", "|");
 		fprintf(stdout,"[i] %s [%s]\n", "+-+-> Threads", cProcess);
-		if(EnumerateThreads(dwPID,cProcess,bSystem,bExclude)==0){
+		if(EnumerateThreads(dwPID,cProcess,bSystem,bExclude,true)==0){
 			fprintf(stdout,"[i] %s\n", "  +--> No Threads");
 		}
 	}

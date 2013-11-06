@@ -60,6 +60,115 @@ const char *sidToTextTok( PSID psid )
 //
 //
 //
+void PrintPermissionsTok( PACL DACL)
+{
+	DWORD dwCount=0;
+	ACCESS_ALLOWED_ACE		*ACE;
+
+	// http://msdn2.microsoft.com/en-us/library/aa379142.aspx
+	if(IsValidAcl(DACL) == TRUE){
+		fprintf(stdout,"[i]    |\n");
+		fprintf(stdout,"[i]    +-+-> Default DACL for new objects created by this user\n");
+
+		// Now for each ACE in the DACL
+		for(dwCount=0;dwCount<DACL->AceCount;dwCount++){
+			// http://msdn2.microsoft.com/en-us/library/aa446634.aspx
+			// http://msdn2.microsoft.com/en-us/library/aa379608.aspx
+			if(GetAce(DACL,dwCount,(LPVOID*)&ACE)){
+				// http://msdn2.microsoft.com/en-us/library/aa374892.aspx		
+				SID *sSID = (SID*)&(ACE->SidStart);
+				if(sSID != NULL)
+				{
+					DWORD dwSize = 2048;
+					char lpName[2048];
+					char lpDomain[2048];
+					SID_NAME_USE SNU;
+					
+					switch(ACE->Header.AceType){
+													// Allowed ACE
+						case ACCESS_ALLOWED_ACE_TYPE:
+							// Lookup the account name and print it.										
+							// http://msdn2.microsoft.com/en-us/library/aa379554.aspx
+							if( !LookupAccountSidA( NULL, sSID, lpName, &dwSize, lpDomain, &dwSize, &SNU ) ) {
+								
+								DWORD dwResult = GetLastError();
+								if( dwResult == ERROR_NONE_MAPPED ){
+									fprintf(stdout,"[i]    |\n");
+									fprintf(stdout,"[i]    +---+-> Allowed - NONMAPPED - SID %s\n", sidToTextTok(sSID));
+								} else if (dwResult != ERROR_NONE_MAPPED){
+									fprintf(stderr,"[!] LookupAccountSid Error 	%u\n", GetLastError());
+									fprintf(stdout,"[i]    |\n");
+									fprintf(stdout,"[i]    +---+-> Allowed - ERROR     - SID %s\n", sidToTextTok(sSID));
+									//return;
+								} else {
+									continue;
+								}
+							} else {
+								
+								fprintf(stdout,"[i]    |\n");
+								fprintf(stdout,"[i]    +---+-> Allowed - %s\\%s\n",lpDomain,lpName);
+
+								char strUserFromPID[1024];
+								memset(strUserFromPID,0x00,1024);
+								if(!strcmp(lpDomain,"BUILTIN")==0 && !strcmp(lpName,"OWNER RIGHTS")==0 && !strcmp(lpDomain,"NT AUTHORITY")==0 && !strcmp(lpDomain,"NT SERVICE")==0) {
+									fprintf(stdout,"[i]      |\n");
+									fprintf(stdout,"[i]      +-+-+-> Alert!\n");
+								}
+							}
+								
+							// print out the ACE mask
+							fprintf(stdout,"[i]        |\n");
+							fprintf(stdout,"[i]        +-> Permissions - ");
+							
+							if(ACE->Mask & GENERIC_ALL) fprintf(stdout,",All");
+							if(ACE->Mask & GENERIC_EXECUTE) fprintf(stdout,",Execute");
+							if(ACE->Mask & GENERIC_READ) fprintf(stdout,",Read");
+							if(ACE->Mask & GENERIC_WRITE) fprintf(stdout,",Write");
+							if(ACE->Mask & DELETE) fprintf(stdout,",Delete");
+							if(ACE->Mask & READ_CONTROL) fprintf(stdout,",Read control");
+							if(ACE->Mask & SYNCHRONIZE) fprintf(stdout,",Sync");
+							if(ACE->Mask & WRITE_DAC) fprintf(stdout,",Modify DACL");
+							if(ACE->Mask & WRITE_OWNER) fprintf(stdout,",Write Owner");
+							if(ACE->Mask & STANDARD_RIGHTS_ALL) fprintf(stdout,",All");
+							if(ACE->Mask & STANDARD_RIGHTS_EXECUTE) fprintf(stdout,",Execute");
+							if(ACE->Mask & STANDARD_RIGHTS_READ) fprintf(stdout,",Read Control");
+							if(ACE->Mask & STANDARD_RIGHTS_REQUIRED)  fprintf(stdout,",Write");
+							if(ACE->Mask & STANDARD_RIGHTS_WRITE) fprintf(stdout,",Read Control");
+
+
+							fprintf(stdout,"\n");
+							break;
+
+						// Denied ACE
+						case ACCESS_DENIED_ACE_TYPE:
+							break;
+
+						// Uh oh
+						default:
+							break;
+
+					}
+				}
+			} else {
+				DWORD dwError = GetLastError();
+				fprintf(stderr,"[!] Error - %d - GetAce\n", dwError);
+				return;
+			}
+
+		}
+	} else {
+		DWORD dwError = GetLastError();
+		fprintf(stderr,"[!] Error - %d - IsValidAcl\n", dwError);
+		return;
+	}
+
+}
+
+//
+//
+//
+//
+//
 BOOL TokenProcess(HANDLE hToken){
 	DWORD dwRet = 0;
 
@@ -69,22 +178,22 @@ BOOL TokenProcess(HANDLE hToken){
 	TOKEN_OWNER *tokOwner;
 	TOKEN_PRIMARY_GROUP *tokPrimGroup;
 	TOKEN_DEFAULT_DACL *tokDACL;
-	TOKEN_SOURCE *tokSource;
-	TOKEN_TYPE *tokType;
+	TOKEN_SOURCE tokSource;
+	TOKEN_TYPE tokType;
 	SECURITY_IMPERSONATION_LEVEL *tokImpersonationLvl;
 	TOKEN_STATISTICS *tokStats;
 	DWORD tokSessionID;
 	TOKEN_GROUPS_AND_PRIVILEGES *tokGrpPrivs;
 	DWORD dwSandboxInert;
 	TOKEN_ORIGIN *tokOrigin;
-	TOKEN_ELEVATION_TYPE *tokElevType;
+	TOKEN_ELEVATION_TYPE tokElevType;
 	TOKEN_LINKED_TOKEN *tokLinkedToken;
-	TOKEN_ELEVATION *tokElev;
+	TOKEN_ELEVATION tokElev;
 	DWORD tokHasRestrictions;
 	TOKEN_ACCESS_INFORMATION *tokAccessInformation;
 	DWORD tokVirtAllowed;
 	DWORD tokVirtEnabled;
-	DWORD tokIntegrityLevel;
+	TOKEN_MANDATORY_LABEL *tokIntegrityLevel;
 	DWORD tokUIAccess;
 	TOKEN_MANDATORY_POLICY *tokMandaPolicy;
 	TOKEN_GROUPS *tokLogonSid;
@@ -94,8 +203,41 @@ BOOL TokenProcess(HANDLE hToken){
 	DWORD tokContainerNumber;
 	//CLAIM_SECURITY_ATTRIBUTES_INFORMATION tokClaimAttributes;
 
-	fprintf(stdout,"[i] +-+-> Token [%08x]\n",hToken);
 
+	GetTokenInformation(hToken,TokenSource,&tokSource,sizeof(tokSource),&dwRet);
+	GetTokenInformation(hToken,TokenType,&tokType,sizeof(tokType),&dwRet);
+	GetTokenInformation(hToken,TokenElevationType,&tokElevType,sizeof(tokElevType),&dwRet);
+	GetTokenInformation(hToken,TokenElevation,&tokElev,sizeof(tokElev),&dwRet);
+	
+	char strType[200];
+	if(tokType == TokenPrimary) strcpy_s(strType,"Primary");
+	else strcpy_s(strType,"Impersonation");
+	
+	char strElevated[200];
+	if(tokElevType == TokenElevationTypeDefault) strcpy_s(strElevated,"No linked token");
+	else if(tokElevType == TokenElevationTypeFull) strcpy_s(strElevated,"Elevated token");
+	else if(tokElevType == TokenElevationTypeLimited) strcpy_s(strElevated,"Limited token");
+
+	fprintf(stdout,"[i] +-+-> Token [%08x] - Token source: %s - Token type %s - %s - %s\n",hToken,tokSource.SourceName,strType,strElevated, tokElev.TokenIsElevated ? "Elevated privs" : "Normal privs" );
+
+	// User
+	GetTokenInformation(hToken,TokenOwner,NULL,0,&dwRet);
+	tokOwner = (TOKEN_OWNER*)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,dwRet);
+	if(GetTokenInformation(hToken,TokenOwner,tokOwner,dwRet,&dwRet) == true){
+		fprintf(stdout,"[i]    |\n");
+		DWORD dwSize = 2048;
+		char lpName[2048];
+		char lpDomain[2048];
+		SID_NAME_USE SNU;
+		if( LookupAccountSidA( NULL, tokOwner->Owner, lpName, &dwSize, lpDomain, &dwSize, &SNU ) ){
+			fprintf(stdout,"[i]    +-+-> Owner: %s\\%s\n",lpDomain,lpName);
+		} else {
+			fprintf(stdout,"[i]    +-+-> Owner: Unkown\n");
+		}
+	} else {
+		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
+	}
+	HeapFree(GetProcessHeap(),NULL,tokOwner);
 	
 	// User
 	GetTokenInformation(hToken,TokenUser,NULL,0,&dwRet);
@@ -258,6 +400,85 @@ BOOL TokenProcess(HANDLE hToken){
 	} else {
 		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
 	}
+
+	// UI Access
+	if(GetTokenInformation(hToken,TokenUIAccess,&tokUIAccess,sizeof(tokUIAccess),&dwRet)){
+		
+		if(dwSandboxInert > 0){
+			fprintf(stdout,"[i]    |\n");
+			fprintf(stdout,"[i]    +-+-> Alert - UI Access\n");
+		}
+
+	} else {
+		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
+	}
+
+	// Integirty level
+	bool bLow = false;
+	GetTokenInformation(hToken,TokenIntegrityLevel,NULL,0,&dwRet);
+	tokIntegrityLevel = (TOKEN_MANDATORY_LABEL *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,dwRet);
+	if(GetTokenInformation(hToken,TokenIntegrityLevel,tokIntegrityLevel ,dwRet,&dwRet) == true){
+		fprintf(stdout,"[i]    |\n");
+
+		DWORD dwSize = 2048;
+		char lpName[2048];
+		char lpDomain[2048];
+		SID_NAME_USE SNU;
+		if( LookupAccountSidA( NULL, tokIntegrityLevel->Label.Sid, lpName, &dwSize, lpDomain, &dwSize, &SNU ) ){
+			fprintf(stdout,"[i]    +-+-> Integrity level: %s\\%s\n",lpDomain,lpName);
+			if(strcmp(lpName,"Low Mandatory Level") ==0)
+			{
+				bLow = true;
+			}
+		} else {
+			fprintf(stdout,"[i]    +-+-> Integrity level: Unkown\n");
+		}
+	
+	} else {
+		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
+	}
+	HeapFree(GetProcessHeap(),NULL,tokIntegrityLevel);
+	
+
+	// Virtualisation allowed
+	if(GetTokenInformation(hToken,TokenVirtualizationAllowed,&tokVirtAllowed,sizeof(tokVirtAllowed),&dwRet)){
+		
+		if(tokVirtAllowed > 0){
+			fprintf(stdout,"[i]    |\n");
+			fprintf(stdout,"[i]    +-+-> UAC virtualisation allowed\n");
+		}
+
+	} else {
+		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
+	}
+
+	// Virtualisation enabled
+	if(GetTokenInformation(hToken,TokenVirtualizationEnabled,&tokVirtEnabled,sizeof(tokVirtEnabled),&dwRet)){
+		
+		if(dwSandboxInert > 0){
+			fprintf(stdout,"[i]    |\n");
+			fprintf(stdout,"[i]    +-+-> UAC virtualisation enabled\n");
+		} else {
+			if(tokVirtAllowed && bLow){
+				fprintf(stdout,"[i]    |\n");
+				fprintf(stdout,"[i]    +-+-> Alert - UAC virtualisation disabled\n");
+			} 
+		}
+
+	} else {
+		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
+	}
+	
+	// Default DACL
+	GetTokenInformation(hToken,TokenDefaultDacl,NULL,0,&dwRet);
+	tokDACL = (TOKEN_DEFAULT_DACL*)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,dwRet);
+	if(GetTokenInformation(hToken,TokenDefaultDacl,tokDACL,dwRet,&dwRet) == true){
+		PrintPermissionsTok(tokDACL->DefaultDacl);
+	} else {
+		fprintf(stderr,"[!] GetTokenInformation %d\n", GetLastError());
+	}
+	HeapFree(GetProcessHeap(),NULL,tokDACL);
+	
 
 	return true;
 }
