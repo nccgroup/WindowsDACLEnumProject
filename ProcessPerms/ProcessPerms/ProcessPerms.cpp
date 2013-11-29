@@ -16,6 +16,7 @@ Released under AGPL see LICENSE for more information
 #include "Common.h"
 #include "Token.h"
 #include "XGetopt.h"
+#include "Handles.h"
 
 // global 
 HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -287,7 +288,24 @@ DWORD GetProcessIntegrityLevel(HANDLE hProcess,bool bPrint)
 	return dwRet;
 }
 
+//
+//
+//
+//
+//
+void PrintJobNfo(HANDLE hProcess, DWORD dwPID)
+{
+	BOOL bRes = false;
 
+	if(IsProcessInJob(hProcess,NULL,&bRes))
+	{
+		if(bRes == true){
+			fprintf(stdout,"[i] %s\n", "|");
+			fprintf(stdout,"[i] %s\n", "+-+-> Process is part of job");
+			GetJobHandles(hProcess,dwPID);
+		}
+	}
+}
 //
 // Function	: PrintPermissions
 // Role		: Print and interpret the permissions for threads and processes
@@ -575,7 +593,7 @@ DWORD EnumerateThreads(DWORD dwPID, char *strProc, bool bSystem,bool bExclude, b
 // Role		: Basic process information
 // Notes	: 
 // 
-void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD dwPID,bool bExclude,bool bTokens)
+void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD dwPID,bool bExclude,bool bTokens, bool bJobs)
 {
 	DWORD intCount, dwRet, dwMods;
 	HANDLE hProcess;
@@ -647,6 +665,10 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 	bool bSystem=UserForPID(dwPID);
 	fprintf(stdout,"\n");
 
+	if(bJobs && !bFirstError){
+		PrintJobNfo(hProcess,dwPID);
+	}
+
 	if(bPerms && !bFirstError){
 		fprintf(stdout,"[i] %s\n", "|");
 		fprintf(stdout,"[i] %s [%s]\n", "+-+-> Permissions", cProcess);
@@ -690,6 +712,7 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 		}
 	}
 
+
 	CloseHandle(hProcess);
 }
 
@@ -698,7 +721,7 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 // Role		: Basic process running
 // Notes	: 
 // 
-void EnumerateProcesses(bool bModules, bool bPerms, bool bThreads, bool bExclude, bool bTokens)
+void EnumerateProcesses(bool bModules, bool bPerms, bool bThreads, bool bExclude, bool bTokens, bool bJobs)
 {
 	DWORD dwPIDArray[2048], dwRet, dwPIDS, intCount;
 
@@ -713,7 +736,7 @@ void EnumerateProcesses(bool bModules, bool bPerms, bool bThreads, bool bExclude
 
 	for(intCount=0;intCount<dwPIDS;intCount++)
 	{
-		EnumerateProcessInformation(bModules,bPerms,bThreads,dwPIDArray[intCount],bExclude, bTokens);
+		EnumerateProcessInformation(bModules,bPerms,bThreads,dwPIDArray[intCount],bExclude, bTokens, bJobs);
 	}
 }
 
@@ -725,12 +748,13 @@ void EnumerateProcesses(bool bModules, bool bPerms, bool bThreads, bool bExclude
 // 
 void PrintHelp(char *strExe){
 
-	fprintf (stdout,"    i.e. %s [-p] [-m] [-t] [-k] [-o] [-x] [-v] [-h]\n",strExe);
+	fprintf (stdout,"    i.e. %s [-p] [-m] [-t] [-k] [-o] [-j] [-x] [-v] [-h]\n",strExe);
 	fprintf (stdout,"    -p Process permissions\n");
 	fprintf (stdout,"    -m Modules\n");
 	fprintf (stdout,"    -t Threads and permissions\n");
 	fprintf (stdout,"    -k Dump token information\n");
 	fprintf (stdout,"    -o [PID] just analyse this specific PID\n");
+	fprintf (stdout,"    -j dump job objects associated with process information\n");
 	fprintf (stdout,"    -x exclude non mapped SIDs from alerts\n");
 	fprintf (stdout,"\n");
 	ExitProcess(1);
@@ -751,6 +775,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	bool	bThreadsandPerms=false;
 	bool	bExclude=false;
 	bool	bTokens=false;
+	bool	bJobs=false;
 	DWORD	dwPID=0;
 	char	chOpt;
 
@@ -761,7 +786,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	SetConsoleTextAttribute(hConsole, 7);
 
 	// Extract all the options
-	while ((chOpt = getopt(argc, argv, _T("o:pmtknxh"))) != EOF) 
+	while ((chOpt = getopt(argc, argv, _T("o:pmtknxhj"))) != EOF) 
 	switch(chOpt)
 	{
 		case _T('p'):
@@ -783,6 +808,9 @@ int _tmain(int argc, _TCHAR* argv[])
 		case _T('x'):
 			bExclude=true;
 			break;
+		case _T('j'):
+			bJobs=true;
+			break;
 		case _T('h'): // Help
 			bHelp=true;
 			break;
@@ -802,9 +830,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	}
 
 	if(dwPID ==0){
-		EnumerateProcesses(bModules,bProcPerms,bThreadsandPerms,bExclude,bTokens);
+		EnumerateProcesses(bModules,bProcPerms,bThreadsandPerms,bExclude,bTokens, bJobs);
 	} else {
-		EnumerateProcessInformation(bModules,bProcPerms,bThreadsandPerms,dwPID,bExclude,bTokens);
+		EnumerateProcessInformation(bModules,bProcPerms,bThreadsandPerms,dwPID,bExclude,bTokens,bJobs);
 	}
 
 	return 0;

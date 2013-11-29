@@ -404,7 +404,7 @@ BOOL TokenProcess(HANDLE hToken){
 	// UI Access
 	if(GetTokenInformation(hToken,TokenUIAccess,&tokUIAccess,sizeof(tokUIAccess),&dwRet)){
 		
-		if(dwSandboxInert > 0){
+		if(tokUIAccess > 0){
 			fprintf(stdout,"[i]    |\n");
 			fprintf(stdout,"[i]    +-+-> Alert - UI Access\n");
 		}

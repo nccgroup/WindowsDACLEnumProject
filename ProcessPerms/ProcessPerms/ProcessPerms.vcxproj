@@ -147,6 +147,7 @@
   <ItemGroup>
     <ClCompile Include="Common.cpp" />
     <ClCompile Include="FilePerms.cpp" />
+    <ClCompile Include="Handles.cpp" />
     <ClCompile Include="ProcessPerms.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -160,6 +161,7 @@
   <ItemGroup>
     <ClInclude Include="Common.h" />
     <ClInclude Include="FilePerms.h" />
+    <ClInclude Include="Handles.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Token.h" />
     <ClInclude Include="XGetopt.h" />
