@@ -155,7 +155,7 @@ bool GetJobHandles(HANDLE hProcess, DWORD dwPID)
 				if(QueryInformationJobObject(hFoo,JobObjectExtendedLimitInformation,&jelInfo,sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION),&dwRet) != ERROR_SUCCESS){
 					if(jelInfo.BasicLimitInformation.ActiveProcessLimit > 0) fprintf(stdout,"[i]   +-> Job active process limit %d\n",jelInfo.BasicLimitInformation.ActiveProcessLimit);
 					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_ACTIVE_PROCESS) fprintf(stdout,"[i]   +-> Job active process limit enforced\n");
-					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_BREAKAWAY_OK) fprintf(stdout,"[i]   +-> Can creat job away jobs\n");
+					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_BREAKAWAY_OK) fprintf(stdout,"[i]   +-> Can create break away jobs\n");
 					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION) fprintf(stdout,"[i]   +-> Die on unhandled exception\n");
 					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_JOB_MEMORY) fprintf(stdout,"[i]   +-> Job total memory limited\n");
 					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE) fprintf(stdout,"[i]   +-> All process associated with job will die when last job handle closed\n");
