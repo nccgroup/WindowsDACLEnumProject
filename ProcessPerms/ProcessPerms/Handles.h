@@ -22,6 +22,16 @@ typedef NTSTATUS (NTAPI *_NtQuerySystemInformation)(
     PULONG ReturnLength
     );
 
+typedef NTSTATUS (NTAPI *_NtDuplicateObject)(
+	HANDLE SourceProcessHandle,
+	HANDLE SourceHandle,
+	HANDLE TargetProcessHandle,
+	PHANDLE TargetHandle,
+	ACCESS_MASK DesiredAccess,
+	ULONG HandleAttributes,
+	ULONG Options
+	);
+
 typedef NTSTATUS (NTAPI * OpenDirectory)(
 	PHANDLE, 
 	ACCESS_MASK, 
@@ -78,7 +88,27 @@ typedef struct _OBJECT_DIRECTORY_INFORMATION {
     UNICODE_STRING TypeName;
 } OBJECT_DIRECTORY_INFORMATION, *POBJECT_DIRECTORY_INFORMATION;
 
+#define SystemExtendedHandleInformation 64
+
+typedef struct _SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX {
+	PVOID Object;
+	ULONG_PTR UniqueProcessId;
+	ULONG_PTR HandleValue;
+	ULONG GrantedAccess;
+	USHORT CreatorBackTraceIndex;
+	USHORT ObjectTypeIndex;
+	ULONG  HandleAttributes;
+	ULONG  Reserved;
+} SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX, *PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX;
+
+typedef struct _SYSTEM_HANDLE_INFORMATION_EX {
+	ULONG_PTR NumberOfHandles;
+	ULONG_PTR Reserved;
+	SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX Handles[ 1 ];
+} SYSTEM_HANDLE_INFORMATION_EX, *PSYSTEM_HANDLE_INFORMATION_EX;
+
 #define SystemHandleInformation			16
+#define systemextendedhandleinformation
 #define STATUS_INFO_LENGTH_MISMATCH		((NTSTATUS)0xC0000004L)
 #define OBJ_CASE_INSENSITIVE			((NTSTATUS)0x00000040L)
 #define STATUS_SUCCESS					((NTSTATUS)0x00000000L)

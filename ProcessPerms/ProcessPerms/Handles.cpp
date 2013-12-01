@@ -69,6 +69,23 @@ BYTE GetObjectTypeNumber(LPCWSTR objectName)
 }
 
 //
+ULONG_PTR GetParentProcessId(HANDLE hProcess) // By Napalm @ NetCore2K
+{
+	ULONG_PTR pbi[6];
+	ULONG ulSize = 0;
+	LONG (WINAPI *NtQueryInformationProcess)(HANDLE ProcessHandle, ULONG ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength); 
+ 
+	*(FARPROC *)&NtQueryInformationProcess =  GetProcAddress(LoadLibraryA("NTDLL.DLL"), "NtQueryInformationProcess");
+ 
+	if(NtQueryInformationProcess){
+		if(NtQueryInformationProcess(hProcess, 0, &pbi, sizeof(pbi), &ulSize) >= 0 && ulSize == sizeof(pbi))
+		return pbi[5];
+	}
+ 
+	return (ULONG_PTR)-1;
+}
+
+//
 //
 //
 //
@@ -77,60 +94,104 @@ bool GetJobHandles(HANDLE hProcess, DWORD dwPID)
 {
 	_NtQuerySystemInformation ntQSI = (_NtQuerySystemInformation) GetProcAddress(GetModuleHandle("NTDLL.DLL"), "NtQuerySystemInformation");
 	if(ntQSI == NULL) return false;
+	_NtDuplicateObject ntDupe = (_NtDuplicateObject) GetProcAddress(GetModuleHandle("NTDLL.DLL"), "NtDuplicateObject");
 
-	DWORD dwSize = sizeof(SYSTEM_HANDLE_INFORMATION);
+	DWORD dwSize = sizeof(SYSTEM_HANDLE_INFORMATION_EX);
 
-	fprintf(stdout,"[jobs]\n");
-
-	PSYSTEM_HANDLE_INFORMATION pHandleInfo = (PSYSTEM_HANDLE_INFORMATION) HeapAlloc(GetProcessHeap(),NULL,dwSize);
-	NTSTATUS dwRet = ntQSI(SystemHandleInformation, pHandleInfo, dwSize, &dwSize);
+	PSYSTEM_HANDLE_INFORMATION_EX pHandleInfo = (PSYSTEM_HANDLE_INFORMATION_EX) HeapAlloc(GetProcessHeap(),NULL,dwSize);
+	NTSTATUS dwRet = ntQSI(SystemExtendedHandleInformation, pHandleInfo, dwSize, &dwSize);
 
 	if(dwRet == STATUS_INFO_LENGTH_MISMATCH){
 		HeapFree(GetProcessHeap(),NULL,pHandleInfo);
-		pHandleInfo = (PSYSTEM_HANDLE_INFORMATION) HeapAlloc(GetProcessHeap(),NULL,dwSize);
-		dwRet = ntQSI(SystemHandleInformation, pHandleInfo, dwSize, &dwSize);
+		pHandleInfo = (PSYSTEM_HANDLE_INFORMATION_EX) HeapAlloc(GetProcessHeap(),NULL,dwSize);
+		dwRet = ntQSI(SystemExtendedHandleInformation, pHandleInfo, dwSize, &dwSize);
 	}
 	
-	fprintf(stdout,"[jobs]\n");
+	BOOL bRes=FALSE;
 
-	for(DWORD dwCount = 0; dwCount < pHandleInfo->HandleCount ; dwCount++){
-		
-		if(pHandleInfo->Handles[dwCount].ProcessId == dwPID)
-		{
-			BYTE bType = GetObjectTypeNumber(L"Job");
+	for(DWORD dwCount = 0; dwCount < pHandleInfo->NumberOfHandles ; dwCount++){
+	
+		bRes=FALSE;
 
-			if(bType==0) fprintf(stdout,"[!] Couldn't find job object type within Windows object manager\n");
-			else if(bType == pHandleInfo->Handles[dwCount].ObjectTypeNumber) {
+		//ULONG
+		if(GetParentProcessId(hProcess) == pHandleInfo->Handles[dwCount].UniqueProcessId);
+		else continue;
 
-				fprintf(stdout,"[opening process]\n");
-				fflush(stdout);
+		HANDLE hProc = OpenProcess(MAXIMUM_ALLOWED,FALSE,GetParentProcessId(hProcess));
 
-				HANDLE hProcessSuperHandle = OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pHandleInfo->Handles[dwCount].ProcessId);
-				if(hProcessSuperHandle==INVALID_HANDLE_VALUE){
-					fprintf(stdout,"[!] Couldn't re-open process with required permissions - %d for PID %d\n",GetLastError(),GetLastError());
-					return false;
-				}
-
-				fprintf(stdout,"[duplicating]\n");
-				fflush(stdout);
-
-				HANDLE hJob = NULL;
-				if(DuplicateHandle(hProcessSuperHandle,(HANDLE) pHandleInfo->Handles[dwCount].Handle,GetCurrentProcess(),&hJob,JOB_OBJECT_QUERY,FALSE,0) != FALSE){
-					fprintf(stdout,"[jobs] %s\n",pHandleInfo->Handles[dwCount].Handle);
-					fflush(stdout);
-				} else {
-					fprintf(stdout,"[!] Couldn't duplicate job handle - %d %08x\n",GetLastError(),hJob);
-					fflush(stdout);
-				}
-
-
-				CloseHandle(hProcessSuperHandle);
-				
-			}
+		if(hProc == NULL) { 
+			//fprintf(stdout,"failed to opened proc\n");
+			continue;
 		} else {
-			//fprintf(stdout,"[handle doesn't match]\n");
+			//fprintf(stdout,"opened proc\n");
 		}
 
+		HANDLE hFoo = NULL;
+
+		ntDupe(hProc,(HANDLE)pHandleInfo->Handles[dwCount].HandleValue,GetCurrentProcess(),&hFoo,GENERIC_READ,0,0);
+
+		if(hFoo == NULL) {
+			//fprintf(stdout,"failed to dup obj\n");
+			continue;
+		} else {
+			//fprintf(stdout,"duped obj\n");
+		}
+		
+		if(IsProcessInJob(hProcess,hFoo,&bRes) != 0){
+			if(bRes==TRUE){
+				fprintf(stdout,"[i]   i-> Found job object handle\n");
+
+				JOBOBJECT_EXTENDED_LIMIT_INFORMATION jelInfo = { 0 };
+				JOBOBJECT_BASIC_UI_RESTRICTIONS jelUI = { 0 };
+
+				DWORD dwRet = 0;
+				if(QueryInformationJobObject(hFoo,JobObjectExtendedLimitInformation,&jelInfo,sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION),&dwRet) != ERROR_SUCCESS){
+					if(jelInfo.BasicLimitInformation.ActiveProcessLimit > 0) fprintf(stdout,"[i]   +-> Job active process limit %d\n",jelInfo.BasicLimitInformation.ActiveProcessLimit);
+					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_ACTIVE_PROCESS) fprintf(stdout,"[i]   +-> Job active process limit enforced\n");
+					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_BREAKAWAY_OK) fprintf(stdout,"[i]   +-> Can creat job away jobs\n");
+					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION) fprintf(stdout,"[i]   +-> Die on unhandled exception\n");
+					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_JOB_MEMORY) fprintf(stdout,"[i]   +-> Job total memory limited\n");
+					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE) fprintf(stdout,"[i]   +-> All process associated with job will die when last job handle closed\n");
+					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_PROCESS_MEMORY) fprintf(stdout,"[i]   +-> Process total memory limited\n");
+					if(jelInfo.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK) fprintf(stdout,"[i]   +-> Can create silent breakaway processes\n");
+									
+				} else {
+					fprintf(stderr,"[!] Failed to get job object limit information - %d\n",GetLastError()); 
+				}
+
+				
+				if(QueryInformationJobObject(hFoo,JobObjectBasicUIRestrictions,&jelUI,sizeof(JOBOBJECT_BASIC_UI_RESTRICTIONS),&dwRet) != ERROR_SUCCESS){
+					if(jelUI.UIRestrictionsClass & JOB_OBJECT_UILIMIT_DESKTOP) fprintf(stdout,"[i]   +-> can't switch or create desktops\n");
+					else fprintf(stdout,"[i]   +-> can switch or create desktops\n");
+
+					if(jelUI.UIRestrictionsClass & JOB_OBJECT_UILIMIT_DISPLAYSETTINGS) fprintf(stdout,"[i]   +-> can't call display settings\n");
+					fprintf(stdout,"[i]   +-> can call display settings\n");
+
+					if(jelUI.UIRestrictionsClass & JOB_OBJECT_UILIMIT_EXITWINDOWS) fprintf(stdout,"[i]   +-> can't call exit Windows\n");
+					else fprintf(stdout,"[i]   +-> can call exit Windows\n");
+
+					if(jelUI.UIRestrictionsClass & JOB_OBJECT_UILIMIT_GLOBALATOMS) fprintf(stdout,"[i]   +-> can't access global atoms\n");
+					else fprintf(stdout,"[i]   +-> can access global atoms\n");
+
+					if(jelUI.UIRestrictionsClass & JOB_OBJECT_UILIMIT_HANDLES) fprintf(stdout,"[i]   +-> can't use user handles\n");
+					else fprintf(stdout,"[i]   +-> can use user handles\n");
+
+					if(jelUI.UIRestrictionsClass & JOB_OBJECT_UILIMIT_READCLIPBOARD) fprintf(stdout,"[i]   +-> can't read clipboard\n");
+					else fprintf(stdout,"[i]   +-> can read clipboard\n");
+
+					if(jelUI.UIRestrictionsClass & JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS) fprintf(stdout,"[i]   +-> can't change system parameters\n");
+					else fprintf(stdout,"[i]   +-> can change system parameters\n");
+
+					if(jelUI.UIRestrictionsClass & JOB_OBJECT_UILIMIT_WRITECLIPBOARD) fprintf(stdout,"[i]   +-> can't write to clipboard\n");
+					else fprintf(stdout,"[i]   +-> can write to clipboard\n");
+				} else {
+					fprintf(stderr,"[!] Failed to get job object UI limit information - %d\n",GetLastError()); 
+				}
+			}
+		}
+
+		CloseHandle(hProc);
+		
 	}
 
 	
