@@ -604,12 +604,12 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 	bool bFirstError = false;
 
 	//PROCESS_ALL_ACCESS |PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
-	hProcess = OpenProcess(PROCESS_ALL_ACCESS |PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, dwPID);
+	hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, dwPID);
 	if (hProcess == NULL)
 	{
 		if(GetLastError()==5){
 			bFirstError = true;
-			hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, dwPID);
+			hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, dwPID);
 			
 			if (hProcess == NULL){
 				

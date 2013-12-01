@@ -114,10 +114,18 @@ bool GetJobHandles(HANDLE hProcess, DWORD dwPID)
 		bRes=FALSE;
 
 		//ULONG
-		if(GetParentProcessId(hProcess) == pHandleInfo->Handles[dwCount].UniqueProcessId);
-		else continue;
+		//if(GetParentProcessId(hProcess) == pHandleInfo->Handles[dwCount].UniqueProcessId);
+		//else if (dwPID == pHandleInfo->Handles[dwCount].UniqueProcessId);
+		//else continue;
 
-		HANDLE hProc = OpenProcess(MAXIMUM_ALLOWED,FALSE,GetParentProcessId(hProcess));
+		HANDLE hProc = NULL;
+
+		//if(GetParentProcessId(hProcess) == pHandleInfo->Handles[dwCount].UniqueProcessId) hProc = OpenProcess(MAXIMUM_ALLOWED,FALSE,GetParentProcessId(hProcess));
+		//else if (dwPID == pHandleInfo->Handles[dwCount].UniqueProcessId) hProc = hProcess;
+		//else if (752 == pHandleInfo->Handles[dwCount].UniqueProcessId) hProc = OpenProcess(MAXIMUM_ALLOWED,FALSE,GetParentProcessId(hProcess));
+		//else continue;
+
+		hProc = OpenProcess(MAXIMUM_ALLOWED,FALSE,pHandleInfo->Handles[dwCount].UniqueProcessId);
 
 		if(hProc == NULL) { 
 			//fprintf(stdout,"failed to opened proc\n");
@@ -127,9 +135,8 @@ bool GetJobHandles(HANDLE hProcess, DWORD dwPID)
 		}
 
 		HANDLE hFoo = NULL;
-
 		ntDupe(hProc,(HANDLE)pHandleInfo->Handles[dwCount].HandleValue,GetCurrentProcess(),&hFoo,GENERIC_READ,0,0);
-
+		
 		if(hFoo == NULL) {
 			//fprintf(stdout,"failed to dup obj\n");
 			continue;
@@ -139,7 +146,7 @@ bool GetJobHandles(HANDLE hProcess, DWORD dwPID)
 		
 		if(IsProcessInJob(hProcess,hFoo,&bRes) != 0){
 			if(bRes==TRUE){
-				fprintf(stdout,"[i]   i-> Found job object handle\n");
+				fprintf(stdout,"[i]   i-> Found job object handle in PID %u\n",pHandleInfo->Handles[dwCount].UniqueProcessId);
 
 				JOBOBJECT_EXTENDED_LIMIT_INFORMATION jelInfo = { 0 };
 				JOBOBJECT_BASIC_UI_RESTRICTIONS jelUI = { 0 };
@@ -184,14 +191,17 @@ bool GetJobHandles(HANDLE hProcess, DWORD dwPID)
 
 					if(jelUI.UIRestrictionsClass & JOB_OBJECT_UILIMIT_WRITECLIPBOARD) fprintf(stdout,"[i]   +-> can't write to clipboard\n");
 					else fprintf(stdout,"[i]   +-> can write to clipboard\n");
+
+
 				} else {
 					fprintf(stderr,"[!] Failed to get job object UI limit information - %d\n",GetLastError()); 
 				}
+
 			}
 		}
 
-		CloseHandle(hProc);
-		
+		if(hProc != NULL) CloseHandle(hProc);
+		if(hFoo != NULL) CloseHandle(hFoo);
 	}
 
 	
