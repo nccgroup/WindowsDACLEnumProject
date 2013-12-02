@@ -148,6 +148,11 @@ bool GetJobHandles(HANDLE hProcess, DWORD dwPID)
 			if(bRes==TRUE){
 				fprintf(stdout,"[i]   i-> Found job object handle in PID %u\n",pHandleInfo->Handles[dwCount].UniqueProcessId);
 
+				FILE_NAME_INFO fInfo= {0};
+				if(GetFileInformationByHandleEx(hFoo,FileNameInfo,&fInfo,sizeof(fInfo)) > 0){
+					_ftprintf(stdout,"[i]   i-> Job name %s\n",fInfo.FileName);
+				}
+
 				JOBOBJECT_EXTENDED_LIMIT_INFORMATION jelInfo = { 0 };
 				JOBOBJECT_BASIC_UI_RESTRICTIONS jelUI = { 0 };
 

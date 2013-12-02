@@ -415,6 +415,7 @@ BOOL TokenProcess(HANDLE hToken){
 
 	// Integirty level
 	bool bLow = false;
+	bool bUntrusted = false;
 	GetTokenInformation(hToken,TokenIntegrityLevel,NULL,0,&dwRet);
 	tokIntegrityLevel = (TOKEN_MANDATORY_LABEL *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,dwRet);
 	if(GetTokenInformation(hToken,TokenIntegrityLevel,tokIntegrityLevel ,dwRet,&dwRet) == true){
@@ -429,6 +430,8 @@ BOOL TokenProcess(HANDLE hToken){
 			if(strcmp(lpName,"Low Mandatory Level") ==0)
 			{
 				bLow = true;
+			} else if (strcmp(lpName,"Untrusted Mandatory Level") == 0){
+				bUntrusted = true;
 			}
 		} else {
 			fprintf(stdout,"[i]    +-+-> Integrity level: Unkown\n");
@@ -455,14 +458,20 @@ BOOL TokenProcess(HANDLE hToken){
 	// Virtualisation enabled
 	if(GetTokenInformation(hToken,TokenVirtualizationEnabled,&tokVirtEnabled,sizeof(tokVirtEnabled),&dwRet)){
 		
-		if(dwSandboxInert > 0){
+		if(tokVirtEnabled > 0){
 			fprintf(stdout,"[i]    |\n");
 			fprintf(stdout,"[i]    +-+-> UAC virtualisation enabled\n");
 		} else {
-			if(tokVirtAllowed && bLow){
+			if(bLow){
 				fprintf(stdout,"[i]    |\n");
-				fprintf(stdout,"[i]    +-+-> Alert - UAC virtualisation disabled\n");
-			} 
+				fprintf(stdout,"[i]    +-+-> Alert - UAC virtualisation disabled for low LI process\n");
+			} else if(bUntrusted){
+				fprintf(stdout,"[i]    |\n");
+				fprintf(stdout,"[i]    +-+-> Alert - UAC virtualisation disabled for untrusted LI process\n");
+			} else {
+				fprintf(stdout,"[i]    |\n");
+				fprintf(stdout,"[i]    +-+-> UAC virtualisation disabled but of no great concern\n");
+			}
 		}
 
 	} else {

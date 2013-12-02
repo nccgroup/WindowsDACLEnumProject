@@ -12,9 +12,11 @@ Released under AGPL see LICENSE for more information
 
 #pragma once
 
-#ifndef _WIN32_WINNT		// Allow use of features specific to Windows XP or later.                   
-#define _WIN32_WINNT 0x0501	// Change this to the appropriate value to target other versions of Windows.
+#ifndef _WIN32_WINNT		// Allow use of features specific to Windows XP or later.     
+// 0x0501
+#define _WIN32_WINNT 0x0600	// Change this to the appropriate value to target other versions of Windows.
 #endif						
+
 
 #include <stdio.h>
 #include <tchar.h>
@@ -23,5 +25,6 @@ Released under AGPL see LICENSE for more information
 #include <Aclapi.h>
 #include <tlhelp32.h>
 #include <wtsapi32.h>
+
 
 // TODO: reference additional headers your program requires here
