@@ -172,7 +172,7 @@ void PrintPermissions( HANDLE hObject, bool bDesktop)
 								
 								if(!bDesktop){
 						
-									if(ACE->Mask & WINSTA_ALL_ACCESS) fprintf(stdout,",All");
+									if(ACE->Mask & WINSTA_ALL_ACCESS == WINSTA_ALL_ACCESS) fprintf(stdout,",All");
 									if(ACE->Mask & WINSTA_ACCESSCLIPBOARD ) fprintf(stdout,",Clipboard");
 									if(ACE->Mask & WINSTA_ACCESSGLOBALATOMS ) fprintf(stdout,",Global Atoms");
 									if(ACE->Mask & WINSTA_CREATEDESKTOP ) fprintf(stdout,",Create Desktop");
@@ -268,16 +268,22 @@ BOOL CALLBACK EnumWindowStationProc(LPTSTR lpszWindowStation, LPARAM lParam)
 {
 
 	fprintf(stdout,"[i] +> WindowStation [%s]\n",lpszWindowStation);
-	HWINSTA hWinStat = OpenWindowStation(lpszWindowStation,FALSE,READ_CONTROL|WINSTA_ALL_ACCESS|GENERIC_ALL);
-	
+	HWINSTA hWinStat = OpenWindowStation(lpszWindowStation,FALSE,READ_CONTROL); // |WINSTA_ALL_ACCESS|GENERIC_ALL
+	   
 	if(hWinStat != NULL){
 		PrintPermissions(hWinStat,false);
-		SetProcessWindowStation(hWinStat);
-		if(EnumDesktops(hWinStat,&EnumDesktopProc,NULL)== NULL){
+		
+	}
+
+	CloseHandle(hWinStat);
+
+	hWinStat = OpenWindowStation(lpszWindowStation,FALSE,WINSTA_ENUMDESKTOPS); // Change #2: Only ask for WINSTA_ENUMDESKTOPS - this didn't actually get me more info in practice, but didn't get any less either.
+    
+	if(hWinStat != NULL){
+        SetProcessWindowStation(hWinStat);
+        if(EnumDesktops(hWinStat,&EnumDesktopProc,NULL)== NULL){
 			fprintf(stderr,"[!} Couldn't enumerate desktops - %s - %d\n",lpszWindowStation,GetLastError());
 		}
-	} else {
-		fprintf(stderr,"[!] Couldn't open Window station - %s - %d\n",lpszWindowStation,GetLastError());
 	}
 
 	return true;
