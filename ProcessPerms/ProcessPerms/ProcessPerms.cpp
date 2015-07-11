@@ -86,6 +86,80 @@ BOOL SetDebugPrivilege(HANDLE hProcess)
 }
 
 //
+// Function	: SetSecurityPrivilege
+// Role		: Gets security privs for our process
+// Notes	: 
+//
+BOOL SetSecurityPrivilege(HANDLE hProcess)
+{
+	LUID luid;
+	TOKEN_PRIVILEGES privs;
+	HANDLE hToken = NULL;
+	DWORD dwBufLen = 0;
+	char buf[1024];
+
+	ZeroMemory(&luid, sizeof(luid));
+
+	if (!LookupPrivilegeValue(NULL, SE_SECURITY_NAME, &luid))
+		return false;
+
+	privs.PrivilegeCount = 1;
+	privs.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+	memcpy(&privs.Privileges[0].Luid, &luid, sizeof(privs.Privileges[0].Luid)
+		);
+
+
+	if (!OpenProcessToken(hProcess, TOKEN_ALL_ACCESS, &hToken))
+		return false;
+
+	if (!AdjustTokenPrivileges(hToken, FALSE, &privs,
+		sizeof(buf), (PTOKEN_PRIVILEGES)buf, &dwBufLen))
+		return false;
+
+	CloseHandle(hProcess);
+	CloseHandle(hToken);
+
+	return true;
+}
+
+//
+// Function	: SetBackupPrivilege
+// Role		: Gets backup privs for our process
+// Notes	: 
+//
+BOOL SetBackupPrivilege(HANDLE hProcess)
+{
+	LUID luid;
+	TOKEN_PRIVILEGES privs;
+	HANDLE hToken = NULL;
+	DWORD dwBufLen = 0;
+	char buf[1024];
+
+	ZeroMemory(&luid, sizeof(luid));
+
+	if (!LookupPrivilegeValue(NULL, SE_BACKUP_NAME, &luid))
+		return false;
+
+	privs.PrivilegeCount = 1;
+	privs.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+	memcpy(&privs.Privileges[0].Luid, &luid, sizeof(privs.Privileges[0].Luid)
+		);
+
+
+	if (!OpenProcessToken(hProcess, TOKEN_ALL_ACCESS, &hToken))
+		return false;
+
+	if (!AdjustTokenPrivileges(hToken, FALSE, &privs,
+		sizeof(buf), (PTOKEN_PRIVILEGES)buf, &dwBufLen))
+		return false;
+
+	CloseHandle(hProcess);
+	CloseHandle(hToken);
+
+	return true;
+}
+
+//
 // Function	: UserForPID
 // Role		: Username for a PID
 // Notes	: 
@@ -490,7 +564,9 @@ void PrintPermissions( HANDLE hObject, char *strProc, bool bSystem, bool bThread
 			}
 		} else {
 			DWORD dwError = GetLastError();
-			fprintf(stderr,"[!] Error - %d - IsValidAcl\n", dwError);
+			SetConsoleTextAttribute(hConsole, 12);
+			fprintf(stdout, "[i]    +-+-+-> Alert invalid ACL i.e. no ACL - anyone can access!\n");
+			SetConsoleTextAttribute(hConsole, 7);
 			return;
 		}
 	}
@@ -608,11 +684,12 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 	if (hProcess == NULL)
 	{
 		if(GetLastError()==5){
+			fprintf(stderr, "[debug] failed with MAXIMUM_ALLOWED for %d - %d\n", dwPID, GetLastError());
 			bFirstError = true;
-			hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, dwPID);
+			hProcess = OpenProcess(PROCESS_VM_OPERATION, FALSE, dwPID);
 			
 			if (hProcess == NULL){
-				
+				fprintf(stderr, "[debug] failed with PROCESS_VM_OPERATION - 2 - for %d - %d\n", dwPID,GetLastError());
 				PWTS_PROCESS_INFO pProcessInfo;
 				DWORD dwProcessCount=0;
 				
@@ -622,7 +699,9 @@ void EnumerateProcessInformation(bool bModules, bool bPerms, bool bThreads,DWORD
 				} else{
 					for(DWORD dwCount=0;dwCount<dwProcessCount;dwCount++){
 						if(pProcessInfo[dwCount].ProcessId == dwPID){
-							strcpy_s(cProcess,MAX_PATH,pProcessInfo[dwCount].pProcessName);				
+							strcpy_s(cProcess,MAX_PATH,pProcessInfo[dwCount].pProcessName);	
+							
+							fprintf(stderr, "[debug] - for %s\n", pProcessInfo[dwCount].pProcessName);
 						}
 					}
 					WTSFreeMemory(pProcessInfo);
@@ -821,11 +900,29 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	if(bHelp) PrintHelp(argv[0]);
 
-	// Get out debug privs
+	// Get our debug privs
 	if ( SetDebugPrivilege(GetCurrentProcess())){
 		fwprintf(stdout,L"[i] Debug privileges obtained\n");
 	} else{
 		fwprintf(stderr,L"[!] Failed to obtain debug privileges\n");
+		return 1;
+	}
+
+	// Get our security privs
+	if (SetSecurityPrivilege(GetCurrentProcess())){
+		fwprintf(stdout, L"[i] Security privileges obtained\n");
+	}
+	else{
+		fwprintf(stderr, L"[!] Failed to obtain security privileges\n");
+		return 1;
+	}
+
+	// Get our backup privs
+	if (SetBackupPrivilege(GetCurrentProcess())){
+		fwprintf(stdout, L"[i] Backup privileges obtained\n");
+	}
+	else{
+		fwprintf(stderr, L"[!] Failed to obtain security privileges\n");
 		return 1;
 	}
 
