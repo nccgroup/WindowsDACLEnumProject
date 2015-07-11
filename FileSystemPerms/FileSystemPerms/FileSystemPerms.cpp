@@ -7,7 +7,7 @@ Developed by Ollie Whitehouse, ollie dot whitehouse at nccgroup dot com
 
 https://github.com/nccgroup/WindowsDACLEnumProject
 
-Released under AGPL see LICENSE for more information
+Released under AGPL see LICENSE.txt for more information
 */
 
 
@@ -136,13 +136,13 @@ void PrintPermissions(PACL DACL, bool bFile)
 								}
 							} else {
 								
-								fprintf(stdout,"[i]   |\n");
-								fprintf(stdout,"[i]   +-+-> Allowed - %s\\%s\n",lpDomain,lpName);
+								fprintf(stdout,"[i]     |\n");
+								fprintf(stdout,"[i]     +-+-> Allowed - %s\\%s\n",lpDomain,lpName);
 							}
 							
 							// print out the ACE mask
-							fprintf(stdout,"[i]     |\n");
-							fprintf(stdout,"[i]     +-> Permissions - ");
+							fprintf(stdout,"[i]       |\n");
+							fprintf(stdout,"[i]       +-> Permissions - ");
 							
 						
 							if(bFile == false){

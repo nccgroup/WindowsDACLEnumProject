@@ -17,9 +17,9 @@ Released under AGPL see LICENSE for more information
 //
 // http://msdn.microsoft.com/en-us/library/windows/desktop/dn369256(v=vs.85).aspx
 //
-typedef struct _SERVICE_LAUNCH_PROTECTED_INFO {
-	DWORD  dwLaunchProtected;
-	} SERVICE_LAUNCH_PROTECTED_INFO, *PSERVICE_LAUNCH_PROTECTED_INFO;
+//typedef struct _SERVICE_LAUNCH_PROTECTED_INFO {
+//	DWORD  dwLaunchProtected;
+//	} SERVICE_LAUNCH_PROTECTED_INFO, *PSERVICE_LAUNCH_PROTECTED_INFO;
 
 //
 // http://msdn.microsoft.com/en-us/library/windows/desktop/ms684935(v=vs.85).aspx
